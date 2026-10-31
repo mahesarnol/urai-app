@@ -9,14 +9,17 @@ import threading
 from pathlib import Path
 
 from .ai import PROVIDERS
+from .i18n import t
 from .info import APP_ID
 from .paths import config_dir
 
 log = logging.getLogger("urai.settings")
 
 DEFAULTS: dict = {
+    "lang": "en",                  # en | id (bahasa tampilan, teks hasil, dan rangkuman AI)
+    "theme": "system",             # system | light | dark
     "out_mode": "separate",        # separate | combined
-    "combined_name": "Gabungan",
+    "combined_name": "",           # kosong berarti nama bawaan sesuai bahasa ("Combined" atau "Gabungan")
     "ocr_mode": "offline",         # off | offline | ai
     "langs": ["ind", "eng"],
     "quality": "fast",             # fast | accurate
@@ -29,19 +32,22 @@ DEFAULTS: dict = {
     "runs": 0,                     # berapa kali konversi selesai (untuk ajakan dukungan)
     "supported": False,
     "mm_src": "",                  # struct | ai; kosong berarti dipilih otomatis
-    "mm_kind": "umum",             # umum | notulen | laporan
+    "mm_kind": "poin",             # poin | notulen | lengkap
     "mm_style": None,              # gaya mind map terakhir
     "pdf": {"size": "A4", "orient": "land", "title": True, "label": True, "text": False},
 }
 
 _ENUMS = {
+    "lang": {"en", "id"},
+    "theme": {"system", "light", "dark"},
     "out_mode": {"separate", "combined"},
     "ocr_mode": {"off", "offline", "ai"},
     "quality": {"fast", "accurate"},
     "location": {"custom", "same"},
     "mm_src": {"", "struct", "ai"},
-    "mm_kind": {"umum", "notulen", "laporan"},
+    "mm_kind": {"poin", "notulen", "lengkap"},
 }
+_LEGACY = {"mm_kind": {"umum": "poin", "laporan": "lengkap"}}  # nilai dari versi lama tetap dipahami
 _LANGS = {"ind", "eng", "jav", "sun", "ara"}
 KEYRING_SERVICE = APP_ID
 
@@ -49,6 +55,8 @@ KEYRING_SERVICE = APP_ID
 def _clean(key: str, value):
     """Tolak nilai yang bentuknya salah supaya file pengaturan rusak tidak membuat aplikasi macet."""
     default = DEFAULTS[key]
+    if key in _LEGACY and isinstance(value, str):
+        value = _LEGACY[key].get(value, value)
     if key in _ENUMS:
         return value if value in _ENUMS[key] else default
     if key == "langs":
@@ -125,6 +133,10 @@ class Settings:
 
     def public(self) -> dict:
         return copy.deepcopy(self.data)
+
+    def combined_name(self) -> str:
+        """Nama file gabungan. Kosong berarti nama bawaan dalam bahasa aktif."""
+        return self.data["combined_name"].strip() or t("combined.default")
 
     def model_for(self, provider: str) -> str:
         return self.data["models"].get(provider) or PROVIDERS.get(provider, PROVIDERS["other"])["model"]

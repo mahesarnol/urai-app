@@ -3,6 +3,7 @@ import threading
 
 import pytest
 
+from urai import i18n
 from urai.paths import samples_dir
 
 
@@ -24,7 +25,9 @@ def isolated_home(tmp_path, monkeypatch):
         set_password = delete_password = get_password
 
     monkeypatch.setitem(__import__("sys").modules, "keyring", NoKeyring)
+    i18n.set_lang("en")  # setiap uji mulai dengan bahasa bawaan
     yield home
+    i18n.set_lang("en")
 
 
 @pytest.fixture

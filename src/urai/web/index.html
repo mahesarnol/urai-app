@@ -1,14 +1,17 @@
 <!doctype html>
-<html lang="id">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- Semua file dimuat dari aplikasi sendiri. 'unsafe-eval' dibutuhkan jembatan pywebview. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>Urai App</title>
+<link rel="icon" href="data:,">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
+<!-- Teks tampilan diambil dari i18n.js: data-i18n (teks), data-i18n-html (teks bermarkup), data-i18n-attr="atribut:kunci;…".
+     Isi bawaan di bawah ini bahasa Inggris; elemen yang punya ikon hanya diganti simpul teksnya. -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/></symbol>
@@ -41,13 +44,13 @@
   <div class="app">
     <header class="apphead">
       <div class="brand">
-        <div><span class="wordmark"><b>Urai</b><span>App</span></span><small id="tagline">Urai dokumen jadi teks Markdown yang rapi</small></div>
+        <div><span class="wordmark"><b>Urai</b><span>App</span></span><small id="tagline" data-i18n="tagline">Turn documents into clean Markdown text</small></div>
       </div>
       <div class="headact">
-        <button class="btn quiet" type="button" id="btnHelp"><svg class="ic"><use href="#i-help"/></svg>Panduan</button>
-        <button class="btn quiet" type="button" id="btnSettings"><svg class="ic"><use href="#i-sliders"/></svg>Pengaturan</button>
-        <button class="btn quiet" type="button" id="btnAbout"><svg class="ic"><use href="#i-info"/></svg>Tentang</button>
-        <button class="btn heart" type="button" id="btnSupport"><svg class="ic"><use href="#i-heart"/></svg>Dukung</button>
+        <button class="btn quiet" type="button" id="btnHelp" data-i18n="head.help"><svg class="ic"><use href="#i-help"/></svg>Help</button>
+        <button class="btn quiet" type="button" id="btnSettings" data-i18n="head.settings"><svg class="ic"><use href="#i-sliders"/></svg>Settings</button>
+        <button class="btn quiet" type="button" id="btnAbout" data-i18n="head.about"><svg class="ic"><use href="#i-info"/></svg>About</button>
+        <button class="btn heart" type="button" id="btnSupport" data-i18n="head.support"><svg class="ic"><use href="#i-heart"/></svg>Support</button>
       </div>
     </header>
 
@@ -55,11 +58,11 @@
       <!-- 1. dokumen -->
       <section class="panel" aria-labelledby="h-src">
         <div class="phead">
-          <span class="step">1</span><h3 id="h-src">Dokumen</h3>
+          <span class="step">1</span><h3 id="h-src" data-i18n="src.title">Documents</h3>
           <span class="pmeta" id="srcMeta"></span>
           <div class="pact">
-            <button class="btn sm" type="button" id="addFile"><svg class="ic"><use href="#i-plus"/></svg>File</button>
-            <button class="btn sm" type="button" id="addFolder"><svg class="ic"><use href="#i-folder"/></svg>Folder</button>
+            <button class="btn sm" type="button" id="addFile" data-i18n="src.addFile"><svg class="ic"><use href="#i-plus"/></svg>File</button>
+            <button class="btn sm" type="button" id="addFolder" data-i18n="src.addFolder"><svg class="ic"><use href="#i-folder"/></svg>Folder</button>
           </div>
         </div>
 
@@ -69,102 +72,102 @@
             <svg class="ic"><use href="#i-arrow"/></svg>
             <span class="badge b-md">MD</span>
           </div>
-          <h4>Tarik dokumen ke sini</h4>
-          <p>Bisa banyak file sekaligus, atau satu folder penuh. Link YouTube dan halaman web ditempel di kolom bawah.</p>
+          <h4 data-i18n="dz.title">Drag documents here</h4>
+          <p data-i18n="dz.text">Add many files at once, or a whole folder. Paste YouTube and web page links in the box below.</p>
           <div class="acts">
-            <button class="btn primary" type="button" id="dzPick"><svg class="ic"><use href="#i-plus"/></svg>Pilih file</button>
-            <button class="btn" type="button" id="dzFolder"><svg class="ic"><use href="#i-folder"/></svg>Pilih folder</button>
+            <button class="btn primary" type="button" id="dzPick" data-i18n="dz.pickFiles"><svg class="ic"><use href="#i-plus"/></svg>Choose files</button>
+            <button class="btn" type="button" id="dzFolder" data-i18n="dz.pickFolder"><svg class="ic"><use href="#i-folder"/></svg>Choose folder</button>
           </div>
-          <span class="formats">PDF · Word · PowerPoint · Excel · gambar · audio · EPUB · ZIP · HTML · CSV</span>
-          <span class="try" id="tryWrap">Baru pertama kali? <button class="linkbtn" type="button" id="tryDemo">Coba dengan file contoh</button></span>
+          <span class="formats" data-i18n="dz.formats">PDF · Word · PowerPoint · Excel · images · audio · EPUB · ZIP · HTML · CSV</span>
+          <span class="try" id="tryWrap"><span data-i18n="dz.tryQ">First time here?</span> <button class="linkbtn" type="button" id="tryDemo" data-i18n="dz.try">Try with sample files</button></span>
         </div>
 
-        <ul class="files" id="files" aria-label="Daftar dokumen"></ul>
-        <p class="orderhint"><svg class="ic"><use href="#i-grip"/></svg>Urutan di daftar ini menjadi urutan isi file gabungan. Seret pegangan untuk memindahkan.</p>
+        <ul class="files" id="files" data-i18n-attr="aria-label:files.aria" aria-label="Document list"></ul>
+        <p class="orderhint" data-i18n="files.orderHint"><svg class="ic"><use href="#i-grip"/></svg>The order of this list is the order of the combined file. Drag the handle to move an item.</p>
 
         <form class="linkrow" id="linkForm" autocomplete="off">
-          <label class="inp" for="linkInput"><svg class="ic"><use href="#i-link"/></svg><input id="linkInput" type="text" spellcheck="false" placeholder="Tempel link YouTube atau halaman web, lalu tekan Enter"></label>
-          <button class="btn" type="submit">Tambah link</button>
+          <label class="inp" for="linkInput"><svg class="ic"><use href="#i-link"/></svg><input id="linkInput" type="text" spellcheck="false" data-i18n-attr="placeholder:link.placeholder" placeholder="Paste a YouTube or web page link, then press Enter"></label>
+          <button class="btn" type="submit" data-i18n="link.add">Add link</button>
         </form>
       </section>
 
       <!-- 2 + 3. atur / proses / hasil -->
       <section class="panel" aria-labelledby="h-side">
         <div class="setup">
-          <div class="phead"><span class="step">2</span><h3 id="h-side">Atur hasil</h3></div>
+          <div class="phead"><span class="step">2</span><h3 id="h-side" data-i18n="side.title">Choose output</h3></div>
           <div class="scroll">
             <div class="grp" role="group" aria-labelledby="g-out">
-              <span class="glabel" id="g-out">Bentuk hasil</span>
+              <span class="glabel" id="g-out" data-i18n="out.label">Output type</span>
               <div class="opts">
                 <button class="opt" type="button" data-out="separate" aria-pressed="true">
                   <span class="top"><span class="mini" aria-hidden="true"><i></i><i></i><i></i><svg class="ic"><use href="#i-arrow"/></svg><i class="m"></i><i class="m"></i><i class="m"></i></span><span class="rad"></span></span>
-                  <span class="ot">Satu file per dokumen</span>
-                  <span class="os" id="outSepSub">File .md dengan nama sama seperti aslinya</span>
+                  <span class="ot" data-i18n="out.sep">One file per document</span>
+                  <span class="os" id="outSepSub" data-i18n="out.sepSubAny">Several .md files, same names as the originals</span>
                 </button>
                 <button class="opt" type="button" data-out="combined" aria-pressed="false">
                   <span class="top"><span class="mini" aria-hidden="true"><i></i><i></i><i></i><svg class="ic"><use href="#i-arrow"/></svg><i class="m big"></i></span><span class="rad"></span></span>
-                  <span class="ot">Gabung jadi satu</span>
-                  <span class="os">1 file .md, isi urut sesuai daftar</span>
+                  <span class="ot" data-i18n="out.comb">Combine into one</span>
+                  <span class="os" data-i18n="out.combSub">One .md file, in list order</span>
                 </button>
               </div>
               <div class="cname">
-                <label for="cname">Nama file gabungan</label>
-                <div class="inp"><input id="cname" type="text" spellcheck="false" maxlength="120"><span class="suffix">.md</span></div>
+                <label for="cname" data-i18n="out.cname">Combined file name</label>
+                <div class="inp"><input id="cname" type="text" spellcheck="false" maxlength="120" data-i18n-attr="placeholder:combined.default" placeholder="Combined"><span class="suffix">.md</span></div>
               </div>
             </div>
 
             <div class="grp" role="group" aria-labelledby="g-ocr">
-              <span class="glabel" id="g-ocr">Baca gambar &amp; hasil scan</span>
+              <span class="glabel" id="g-ocr" data-i18n="ocr.label">Read images &amp; scans</span>
               <div class="modes">
-                <button class="mode" type="button" data-ocr="off" aria-pressed="false"><b><span class="rad"></span>Mati</b><span>Hanya teks digital</span></button>
-                <button class="mode" type="button" data-ocr="offline" aria-pressed="true"><b><span class="rad"></span>Offline</b><span>Gratis, tanpa internet</span></button>
-                <button class="mode" type="button" data-ocr="ai" aria-pressed="false"><b><span class="rad"></span>AI</b><span>Paling akurat, berbayar</span></button>
+                <button class="mode" type="button" data-ocr="off" aria-pressed="false"><b data-i18n="ocr.off"><span class="rad"></span>Off</b><span data-i18n="ocr.offSub">Digital text only</span></button>
+                <button class="mode" type="button" data-ocr="offline" aria-pressed="true"><b data-i18n="ocr.offline"><span class="rad"></span>Offline</b><span data-i18n="ocr.offlineSub">Free, no internet</span></button>
+                <button class="mode" type="button" data-ocr="ai" aria-pressed="false"><b data-i18n="ocr.ai"><span class="rad"></span>AI</b><span data-i18n="ocr.aiSub">Most accurate, paid</span></button>
               </div>
               <div class="hint" id="ocrHint"></div>
             </div>
 
             <div class="grp" role="group" aria-labelledby="g-save">
-              <span class="glabel" id="g-save">Simpan ke</span>
+              <span class="glabel" id="g-save" data-i18n="save.label">Save to</span>
               <div class="pathrow">
                 <svg class="ic"><use href="#i-folder"/></svg>
                 <span class="path" id="pathText"></span>
-                <button class="btn sm quiet" type="button" id="changePath">Ubah</button>
+                <button class="btn sm quiet" type="button" id="changePath" data-i18n="save.change">Change</button>
               </div>
-              <label class="check" for="sameFolder"><input type="checkbox" id="sameFolder"> Simpan di folder yang sama dengan file asli</label>
+              <label class="check" for="sameFolder" data-i18n="save.same"><input type="checkbox" id="sameFolder"> Save in the same folder as the original files</label>
             </div>
           </div>
           <div class="cta">
-            <button class="btn primary big" type="button" id="go"><svg class="ic"><use href="#i-arrow"/></svg><span id="goText">Tambahkan dokumen dulu</span><span class="kbd">Ctrl + Enter</span></button>
+            <button class="btn primary big" type="button" id="go"><svg class="ic"><use href="#i-arrow"/></svg><span id="goText" data-i18n="go.empty">Add documents first</span><span class="kbd">Ctrl + Enter</span></button>
           </div>
         </div>
 
         <div class="progress" aria-live="polite">
-          <div class="phead" style="padding-inline:0"><span class="step">3</span><h3>Sedang mengubah</h3></div>
+          <div class="phead" style="padding-inline:0"><span class="step">3</span><h3 data-i18n="prog.title">Converting</h3></div>
           <div class="pct" id="pct">0%</div>
           <div class="bar"><i id="pctBar"></i></div>
           <div class="cur" id="cur"></div>
           <ul class="donelist" id="doneList"></ul>
           <div class="cancelrow">
-            <button class="btn" type="button" id="cancel"><svg class="ic"><use href="#i-x"/></svg>Batalkan</button>
-            <p>Dokumen yang sudah selesai tetap tersimpan.</p>
+            <button class="btn" type="button" id="cancel"><svg class="ic"><use href="#i-x"/></svg><span id="cancelText" data-i18n="prog.cancel">Cancel</span></button>
+            <p data-i18n="prog.keep">Finished documents stay saved.</p>
           </div>
         </div>
 
         <div class="result">
-          <div class="phead" style="padding-inline:0"><span class="step ok"><svg class="ic"><use href="#i-check"/></svg></span><h3>Selesai</h3><span class="pmeta" id="resMeta"></span></div>
+          <div class="phead" style="padding-inline:0"><span class="step ok"><svg class="ic"><use href="#i-check"/></svg></span><h3 data-i18n="res.title">Done</h3><span class="pmeta" id="resMeta"></span></div>
           <div class="outbox" id="outbox"></div>
           <div class="ract">
-            <button class="btn primary" type="button" id="openFile"><svg class="ic"><use href="#i-open"/></svg><span id="openFileText">Buka file</span></button>
-            <button class="btn" type="button" id="openFolder"><svg class="ic"><use href="#i-folder"/></svg>Buka folder</button>
-            <button class="btn" type="button" id="copyText"><svg class="ic"><use href="#i-copy"/></svg>Salin teks</button>
-            <button class="btn" type="button" id="toMap"><svg class="ic"><use href="#i-spark"/></svg>Mind map</button>
+            <button class="btn primary" type="button" id="openFile"><svg class="ic"><use href="#i-open"/></svg><span id="openFileText" data-i18n="res.openFile">Open file</span></button>
+            <button class="btn" type="button" id="openFolder" data-i18n="res.openFolder"><svg class="ic"><use href="#i-folder"/></svg>Open folder</button>
+            <button class="btn" type="button" id="copyText" data-i18n="res.copy"><svg class="ic"><use href="#i-copy"/></svg>Copy text</button>
+            <button class="btn" type="button" id="toMap" data-i18n="res.map"><svg class="ic"><use href="#i-spark"/></svg>Mind map</button>
           </div>
           <div class="pv">
             <div class="pvbar">
-              <div class="tabs" role="tablist" aria-label="Mode pratinjau">
-                <button type="button" role="tab" data-tab="view" aria-selected="true">Tampilan</button>
-                <button type="button" role="tab" data-tab="raw" aria-selected="false">Teks Markdown</button>
-                <button type="button" role="tab" data-tab="map" aria-selected="false">Mind map</button>
+              <div class="tabs" role="tablist" data-i18n-attr="aria-label:tab.aria" aria-label="Preview mode">
+                <button type="button" role="tab" data-tab="view" aria-selected="true" data-i18n="tab.view">Preview</button>
+                <button type="button" role="tab" data-tab="raw" aria-selected="false" data-i18n="tab.raw">Markdown text</button>
+                <button type="button" role="tab" data-tab="map" aria-selected="false" data-i18n="tab.map">Mind map</button>
               </div>
               <span class="pvlabel" id="pvLabel"></span>
             </div>
@@ -172,141 +175,161 @@
             <div class="mm" id="mmPanel" hidden>
               <div class="mmsetup" id="mmSetup">
                 <div class="grp">
-                  <span class="glabel">Buat rangkuman dari</span>
+                  <span class="glabel" data-i18n="mm.from">Summarize from</span>
                   <div class="opts">
-                    <button class="opt" type="button" data-src="struct" aria-pressed="false"><span class="top"><span class="ot">Struktur dokumen</span><span class="rad"></span></span><span class="os">Gratis dan offline. Cabang diambil dari judul dan daftar di dokumen.</span></button>
-                    <button class="opt" type="button" data-src="ai" aria-pressed="true"><span class="top"><span class="ot">Rangkuman AI</span><span class="rad"></span></span><span class="os">Lebih ringkas dan bisa menggabungkan beberapa dokumen. Memakai API key Anda.</span></button>
+                    <button class="opt" type="button" data-src="struct" aria-pressed="false"><span class="top"><span class="ot" data-i18n="mm.struct">Document structure</span><span class="rad"></span></span><span class="os" data-i18n="mm.structSub">Free and offline. Branches come from the document’s headings and lists.</span></button>
+                    <button class="opt" type="button" data-src="ai" aria-pressed="true"><span class="top"><span class="ot" data-i18n="mm.ai">AI summary</span><span class="rad"></span></span><span class="os" data-i18n="mm.aiSub">More concise, and can combine several documents. Uses your API key.</span></button>
                   </div>
                 </div>
                 <div class="grp" id="mmKindGrp">
-                  <span class="glabel">Jenis rangkuman</span>
+                  <span class="glabel" data-i18n="mm.kind">Summary type</span>
                   <div class="kindrow">
-                    <div class="mseg" id="mmKind" role="group" aria-label="Jenis rangkuman"><button type="button" data-k="umum" aria-pressed="true">Umum</button><button type="button" data-k="notulen" aria-pressed="false">Notulen</button><button type="button" data-k="laporan" aria-pressed="false">Laporan</button></div>
+                    <div class="mseg" id="mmKind" role="group" data-i18n-attr="aria-label:mm.kind" aria-label="Summary type"><button type="button" data-k="poin" aria-pressed="true" data-i18n="kind.poin">Key points</button><button type="button" data-k="notulen" aria-pressed="false" data-i18n="kind.notulen">Minutes</button><button type="button" data-k="lengkap" aria-pressed="false" data-i18n="kind.lengkap">Full summary</button></div>
                     <span class="fhint" id="mmKindHint"></span>
                   </div>
                 </div>
                 <div class="note warn" id="mmNote"></div>
-                <div class="mmgo"><span class="pmeta" id="mmScope"></span><button class="btn primary" type="button" id="mmGo"><svg class="ic"><use href="#i-spark"/></svg><span id="mmGoText">Buat rangkuman AI</span></button></div>
+                <div class="mmgo"><span class="pmeta" id="mmScope"></span><button class="btn primary" type="button" id="mmGo"><svg class="ic"><use href="#i-spark"/></svg><span id="mmGoText" data-i18n="mm.goAi">Create AI summary</span></button></div>
               </div>
-              <div class="mmbusy" id="mmBusy" hidden><span class="row1"><span class="spin"></span><span id="mmBusyText">Meringkas…</span></span><button class="btn sm" type="button" id="mmStop">Batalkan</button></div>
+              <div class="mmbusy" id="mmBusy" hidden><span class="row1"><span class="spin"></span><span id="mmBusyText" data-i18n="mm.busy">Summarizing…</span></span><button class="btn sm" type="button" id="mmStop" data-i18n="mm.stop">Cancel</button></div>
               <div class="mmready" id="mmReady" hidden>
                 <div class="mmbar">
-                  <div class="mseg sm" id="mmView" role="group" aria-label="Bentuk rangkuman"><button type="button" data-v="map" aria-pressed="true">Mind map</button><button type="button" data-v="text" aria-pressed="false">Teks</button></div>
+                  <div class="mseg sm" id="mmView" role="group" data-i18n-attr="aria-label:mm.viewAria" aria-label="Summary view"><button type="button" data-v="map" aria-pressed="true" data-i18n="mm.viewMap">Mind map</button><button type="button" data-v="text" aria-pressed="false" data-i18n="mm.viewText">Text</button></div>
                   <span class="gap"></span>
-                  <button class="btn sm quiet icon" type="button" id="mmOut" aria-label="Perkecil" title="Perkecil">−</button>
-                  <button class="btn sm quiet icon" type="button" id="mmIn" aria-label="Perbesar" title="Perbesar">+</button>
-                  <button class="btn sm quiet" type="button" id="mmFit">Pas</button>
-                  <button class="btn sm quiet" type="button" id="mmFold">Lipat</button>
-                  <button class="btn sm quiet" type="button" id="mmStyleBtn"><svg class="ic"><use href="#i-sliders"/></svg>Gaya</button>
-                  <button class="btn sm quiet" type="button" id="mmFull">Layar penuh</button>
-                  <button class="btn sm" type="button" id="mmSave" aria-haspopup="menu">Simpan</button>
-                  <div class="menu" id="mmMenu" role="menu" hidden><button type="button" role="menuitem" data-f="pdf">PDF (siap cetak)</button><button type="button" role="menuitem" data-f="png">Gambar PNG</button><button type="button" role="menuitem" data-f="html">HTML interaktif</button><button type="button" role="menuitem" data-f="md">Markdown (.md)</button></div>
+                  <button class="btn sm quiet icon" type="button" id="mmOut" data-i18n-attr="aria-label:mm.zoomOut;title:mm.zoomOut" aria-label="Zoom out" title="Zoom out">−</button>
+                  <button class="btn sm quiet icon" type="button" id="mmIn" data-i18n-attr="aria-label:mm.zoomIn;title:mm.zoomIn" aria-label="Zoom in" title="Zoom in">+</button>
+                  <button class="btn sm quiet" type="button" id="mmFit" data-i18n="mm.fit">Fit</button>
+                  <button class="btn sm quiet" type="button" id="mmFold" data-i18n="mm.fold">Collapse</button>
+                  <button class="btn sm quiet" type="button" id="mmStyleBtn" data-i18n="mm.style"><svg class="ic"><use href="#i-sliders"/></svg>Style</button>
+                  <button class="btn sm quiet" type="button" id="mmFull" data-i18n="mm.full">Full screen</button>
+                  <button class="btn sm" type="button" id="mmSave" aria-haspopup="menu" data-i18n="mm.save">Save</button>
+                  <div class="menu" id="mmMenu" role="menu" hidden><button type="button" role="menuitem" data-f="pdf" data-i18n="mm.fmtPdf">PDF (print-ready)</button><button type="button" role="menuitem" data-f="png" data-i18n="mm.fmtPng">PNG image</button><button type="button" role="menuitem" data-f="html" data-i18n="mm.fmtHtml">Interactive HTML</button><button type="button" role="menuitem" data-f="md" data-i18n="mm.fmtMd">Markdown (.md)</button></div>
                 </div>
-                <div class="mmstage"><svg class="mmsvg" id="mmSvg" aria-label="Mind map"></svg><div class="md mmtext" id="mmText" hidden></div>
+                <div class="mmstage"><svg class="mmsvg" id="mmSvg" data-i18n-attr="aria-label:mm.title" aria-label="Mind map"></svg><div class="md mmtext" id="mmText" hidden></div>
                   <div class="mmstyle" id="mmStyle" hidden>
-                    <div class="sthead">Gaya mind map<button class="btn sm quiet icon x" type="button" id="mmStyleClose" aria-label="Tutup gaya mind map"><svg class="ic"><use href="#i-x"/></svg></button></div>
-                    <div class="field"><span class="flabel">Tema warna</span><div class="mseg sm" id="stTheme" role="group" aria-label="Tema warna"><button type="button" data-v="pelangi">Pelangi</button><button type="button" data-v="urai">Urai</button><button type="button" data-v="lembut">Lembut</button><button type="button" data-v="mono">Monokrom</button></div></div>
-                    <div class="field"><span class="flabel">Cara mewarnai</span><div class="mseg sm" id="stMode" role="group" aria-label="Cara mewarnai"><button type="button" data-v="branch">Per cabang</button><button type="button" data-v="level">Per sub</button></div></div>
-                    <div class="field" id="stFreezeF"><span class="flabel">Warna cabang dibedakan sampai</span><div class="mseg sm" id="stFreeze" role="group" aria-label="Warna dibedakan sampai"><button type="button" data-v="1">Sub 1</button><button type="button" data-v="2">Sub 2</button><button type="button" data-v="3">Sub 3</button><button type="button" data-v="0">Semua</button></div><p class="fhint">Sub di bawahnya ikut warna cabang induknya.</p></div>
-                    <div class="field"><span class="flabel">Warna dan tebal garis tiap sub</span><table class="lvl"><tbody id="stLevels"></tbody></table><p class="fhint">Mengubah warna otomatis beralih ke mode Per sub.</p></div>
-                    <div class="field"><label class="flabel" for="stMaxW">Lebar teks maksimal</label><div class="rng"><input type="range" id="stMaxW" min="120" max="480" step="20"><span class="val" id="stMaxWv"></span></div></div>
-                    <div class="field"><label class="flabel" for="stGap">Jarak antar sub</label><div class="rng"><input type="range" id="stGap" min="30" max="160" step="10"><span class="val" id="stGapv"></span></div></div>
-                    <div class="field"><span class="flabel">Tampilkan sampai</span><div class="mseg sm" id="stExpand" role="group" aria-label="Tampilkan sampai"><button type="button" data-v="2">Sub 1</button><button type="button" data-v="3">Sub 2</button><button type="button" data-v="4">Sub 3</button><button type="button" data-v="-1">Semua</button></div></div>
-                    <button class="btn sm" type="button" id="stReset">Kembalikan ke bawaan</button>
+                    <div class="sthead" data-i18n="sty.head">Mind map style<button class="btn sm quiet icon x" type="button" id="mmStyleClose" data-i18n-attr="aria-label:sty.close" aria-label="Close mind map style"><svg class="ic"><use href="#i-x"/></svg></button></div>
+                    <div class="field"><span class="flabel" data-i18n="sty.theme">Color theme</span><div class="mseg sm" id="stTheme" role="group" data-i18n-attr="aria-label:sty.theme" aria-label="Color theme"><button type="button" data-v="pelangi" data-i18n="sty.pelangi">Rainbow</button><button type="button" data-v="urai" data-i18n="sty.urai">Urai</button><button type="button" data-v="lembut" data-i18n="sty.lembut">Soft</button><button type="button" data-v="mono" data-i18n="sty.mono">Monochrome</button></div></div>
+                    <div class="field"><span class="flabel" data-i18n="sty.mode">Coloring</span><div class="mseg sm" id="stMode" role="group" data-i18n-attr="aria-label:sty.mode" aria-label="Coloring"><button type="button" data-v="branch" data-i18n="sty.branch">By branch</button><button type="button" data-v="level" data-i18n="sty.level">By level</button></div></div>
+                    <div class="field" id="stFreezeF"><span class="flabel" data-i18n="sty.freeze">Distinct branch colors down to</span><div class="mseg sm" id="stFreeze" role="group" data-i18n-attr="aria-label:sty.freezeAria" aria-label="Distinct colors down to"><button type="button" data-v="1" data-i18n="sty.sub1">Level 1</button><button type="button" data-v="2" data-i18n="sty.sub2">Level 2</button><button type="button" data-v="3" data-i18n="sty.sub3">Level 3</button><button type="button" data-v="0" data-i18n="sty.all">All</button></div><p class="fhint" data-i18n="sty.freezeHint">Deeper levels take the color of their parent branch.</p></div>
+                    <div class="field"><span class="flabel" data-i18n="sty.levels">Color and line width per level</span><table class="lvl"><tbody id="stLevels"></tbody></table><p class="fhint" data-i18n="sty.levelsHint">Changing a color switches to By level.</p></div>
+                    <div class="field"><label class="flabel" for="stMaxW" data-i18n="sty.maxW">Maximum text width</label><div class="rng"><input type="range" id="stMaxW" min="120" max="480" step="20"><span class="val" id="stMaxWv"></span></div></div>
+                    <div class="field"><label class="flabel" for="stGap" data-i18n="sty.gap">Spacing between levels</label><div class="rng"><input type="range" id="stGap" min="30" max="160" step="10"><span class="val" id="stGapv"></span></div></div>
+                    <div class="field"><span class="flabel" data-i18n="sty.expand">Show down to</span><div class="mseg sm" id="stExpand" role="group" data-i18n-attr="aria-label:sty.expand" aria-label="Show down to"><button type="button" data-v="2" data-i18n="sty.sub1">Level 1</button><button type="button" data-v="3" data-i18n="sty.sub2">Level 2</button><button type="button" data-v="4" data-i18n="sty.sub3">Level 3</button><button type="button" data-v="-1" data-i18n="sty.all">All</button></div></div>
+                    <button class="btn sm" type="button" id="stReset" data-i18n="sty.reset">Reset to default</button>
                   </div>
                 </div>
-                <div class="mmfoot"><span class="tag" id="mmSrcTag"></span><span class="tag scan off" id="mmWarn">Bisa keliru, periksa kembali</span><span class="tag ok" id="mmPlace"><svg class="ic"><use href="#i-shield"/></svg>Offline, di komputer ini</span><span class="gap"></span><button class="btn sm quiet" type="button" id="mmRedo">Buat ulang</button></div>
+                <div class="mmfoot"><span class="tag" id="mmSrcTag"></span><span class="tag scan off" id="mmWarn" data-i18n="mm.warn">May contain mistakes, please double-check</span><span class="tag ok" id="mmPlace" data-i18n="mm.local"><svg class="ic"><use href="#i-shield"/></svg>Offline, on this computer</span><span class="gap"></span><button class="btn sm quiet" type="button" id="mmRedo" data-i18n="mm.redo">Create again</button></div>
               </div>
             </div>
           </div>
           <div class="size" id="sizeMeter"></div>
           <div class="again">
-            <button class="btn quiet sm" type="button" id="again"><svg class="ic"><use href="#i-plus"/></svg>Ubah dokumen lain</button>
-            <button class="btn quiet sm" type="button" id="backSetup">Ubah pengaturan, ulangi</button>
-            <span class="nudge" id="nudge" hidden><svg class="ic"><use href="#i-heart"/></svg>Bermanfaat? <button class="linkbtn" type="button" id="nudgeSupport">Traktir kopi pengembang</button></span>
+            <button class="btn quiet sm" type="button" id="again" data-i18n="res.again"><svg class="ic"><use href="#i-plus"/></svg>Convert other documents</button>
+            <button class="btn quiet sm" type="button" id="backSetup" data-i18n="res.back">Change settings and redo</button>
+            <span class="nudge" id="nudge" hidden><svg class="ic"><use href="#i-heart"/></svg><span data-i18n="nudge.q">Find it useful?</span> <button class="linkbtn" type="button" id="nudgeSupport" data-i18n="coffee">Buy the developer a coffee</button></span>
           </div>
         </div>
       </section>
     </div>
 
     <footer class="statusbar">
-      <span><i class="sdot"></i><span id="sbLeft">Memuat…</span></span>
+      <span><i class="sdot"></i><span id="sbLeft" data-i18n="sb.loading">Loading…</span></span>
       <span id="sbMid"></span>
-      <span class="r" id="sbRight">Urai App · dibangun di atas MarkItDown dari Microsoft</span>
+      <span class="r" id="sbRight"></span>
     </footer>
   </div>
 
   <div class="dropov" aria-hidden="true">
     <div class="dropbox">
       <span class="up"><svg class="ic"><use href="#i-up"/></svg></span>
-      <h4 id="dropTitle">Lepaskan untuk menambahkan</h4>
-      <p id="dropSub">File atau folder dari File Explorer</p>
+      <h4 id="dropTitle" data-i18n="drop.title">Drop to add</h4>
+      <p id="dropSub" data-i18n="drop.sub">Files or folders from File Explorer</p>
     </div>
   </div>
 
-  <!-- Pengaturan baca gambar & hasil scan -->
+  <!-- Pengaturan: umum, baca offline, AI -->
   <div class="scrim" id="dlgSettings" hidden>
     <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="d-title">
       <div class="dhead">
-        <div><h4 id="d-title">Baca gambar &amp; hasil scan</h4><p>Atur cara aplikasi membaca tulisan di dalam gambar dan PDF hasil scan.</p></div>
-        <button class="btn quiet sm x" type="button" data-close aria-label="Tutup"><svg class="ic"><use href="#i-x"/></svg></button>
+        <div><h4 id="d-title" data-i18n="set.title">Settings</h4><p id="d-sub"></p></div>
+        <button class="btn quiet sm x" type="button" data-close data-i18n-attr="aria-label:close" aria-label="Close"><svg class="ic"><use href="#i-x"/></svg></button>
       </div>
       <div class="dtabs">
-        <div class="mseg" id="dTabs" role="group" aria-label="Mesin pembaca">
-          <button type="button" data-pane="offline" aria-pressed="true">Offline (gratis)</button>
-          <button type="button" data-pane="ai" aria-pressed="false">AI (berbayar)</button>
+        <div class="mseg" id="dTabs" role="group" data-i18n-attr="aria-label:set.tabsAria" aria-label="Settings sections">
+          <button type="button" data-pane="general" aria-pressed="true" data-i18n="set.tabGeneral">General</button>
+          <button type="button" data-pane="offline" aria-pressed="false" data-i18n="set.tabOffline">Offline reading</button>
+          <button type="button" data-pane="ai" aria-pressed="false" data-i18n="set.tabAi">AI</button>
         </div>
       </div>
       <div class="dbody">
-        <div class="pane" id="pane-offline">
-          <div class="note err" id="tessMissing" hidden><svg class="ic"><use href="#i-alert"/></svg><span>Mesin baca scan offline (Tesseract) tidak ditemukan. Pasang ulang Urai App, atau pakai mode AI.</span></div>
+        <div class="pane" id="pane-general">
           <div class="field">
-            <span class="flabel">Bahasa di dokumen</span>
-            <div class="chips" id="langChips"></div>
-            <p class="fhint">Pilih hanya bahasa yang memang ada. Makin sedikit bahasa, makin cepat dan tepat.</p>
-          </div>
-          <div class="field">
-            <span class="flabel">Ketelitian</span>
-            <div class="mseg" id="qSeg" role="group" aria-label="Ketelitian">
-              <button type="button" data-v="fast" aria-pressed="true">Cepat</button>
-              <button type="button" data-v="accurate" aria-pressed="false">Teliti</button>
+            <span class="flabel" data-i18n="set.lang">Language</span>
+            <div class="mseg" id="uiLang" role="group" data-i18n-attr="aria-label:set.lang" aria-label="Language">
+              <button type="button" data-v="en" aria-pressed="true" data-i18n="lang.en">English</button>
+              <button type="button" data-v="id" aria-pressed="false" data-i18n="lang.id">Bahasa Indonesia</button>
             </div>
-            <p class="fhint">Pilih Teliti untuk scan buram atau foto dari HP. Prosesnya sekitar dua kali lebih lama.</p>
           </div>
-          <label class="toggle" for="ocrEmbedded"><input type="checkbox" id="ocrEmbedded" checked> Baca juga gambar di dalam Word, PowerPoint, dan Excel</label>
-          <div class="note ok"><svg class="ic"><use href="#i-shield"/></svg><span>Semua diproses di komputer ini. Dokumen tidak dikirim ke internet.</span></div>
+          <div class="field">
+            <span class="flabel" data-i18n="set.theme">Theme</span>
+            <div class="mseg" id="uiTheme" role="group" data-i18n-attr="aria-label:set.theme" aria-label="Theme">
+              <button type="button" data-v="system" aria-pressed="true" data-i18n="theme.system">System</button>
+              <button type="button" data-v="light" aria-pressed="false" data-i18n="theme.light">Light</button>
+              <button type="button" data-v="dark" aria-pressed="false" data-i18n="theme.dark">Dark</button>
+            </div>
+            <p class="fhint" data-i18n="set.themeHint">System follows your Windows light or dark setting.</p>
+          </div>
+        </div>
+
+        <div class="pane" id="pane-offline" hidden>
+          <div class="note err" id="tessMissing" hidden><svg class="ic"><use href="#i-alert"/></svg><span data-i18n="off.missing">The offline scan reader (Tesseract) wasn’t found. Reinstall Urai App, or use AI mode.</span></div>
+          <div class="field">
+            <span class="flabel" data-i18n="off.langs">Languages in your documents</span>
+            <div class="chips" id="langChips"></div>
+            <p class="fhint" data-i18n="off.langsHint">Choose only the languages that actually appear. Fewer languages means faster, more accurate results.</p>
+          </div>
+          <div class="field">
+            <span class="flabel" data-i18n="off.quality">Accuracy</span>
+            <div class="mseg" id="qSeg" role="group" data-i18n-attr="aria-label:off.quality" aria-label="Accuracy">
+              <button type="button" data-v="fast" aria-pressed="true" data-i18n="off.fast">Fast</button>
+              <button type="button" data-v="accurate" aria-pressed="false" data-i18n="off.accurate">Thorough</button>
+            </div>
+            <p class="fhint" data-i18n="off.qualityHint">Choose Thorough for blurry scans or phone photos. It takes about twice as long.</p>
+          </div>
+          <label class="toggle" for="ocrEmbedded" data-i18n="off.embedded"><input type="checkbox" id="ocrEmbedded" checked> Also read images inside Word, PowerPoint, and Excel files</label>
+          <div class="note ok"><svg class="ic"><use href="#i-shield"/></svg><span data-i18n="off.private">Everything is processed on this computer. Your documents aren’t sent to the internet.</span></div>
         </div>
 
         <div class="pane" id="pane-ai" hidden>
           <div class="field">
-            <span class="flabel">Penyedia AI</span>
+            <span class="flabel" data-i18n="ai.provider">AI provider</span>
             <div class="prov" id="prov">
               <button class="pvopt" type="button" data-p="claude" aria-pressed="false">Claude<small>Anthropic</small></button>
               <button class="pvopt" type="button" data-p="gemini" aria-pressed="false">Gemini<small>Google</small></button>
               <button class="pvopt" type="button" data-p="deepseek" aria-pressed="false">DeepSeek<small>DeepSeek</small></button>
               <button class="pvopt" type="button" data-p="openai" aria-pressed="false">OpenAI<small>ChatGPT</small></button>
-              <button class="pvopt" type="button" data-p="openrouter" aria-pressed="false">OpenRouter<small>banyak model</small></button>
-              <button class="pvopt" type="button" data-p="other" aria-pressed="false">Lainnya<small>server sendiri</small></button>
+              <button class="pvopt" type="button" data-p="openrouter" aria-pressed="false">OpenRouter<small data-i18n="ai.many">many models</small></button>
+              <button class="pvopt" type="button" data-p="other" aria-pressed="false" data-i18n="ai.other">Other<small data-i18n="ai.otherSub">your own server</small></button>
             </div>
           </div>
           <div class="field">
-            <label class="flabel" for="apiKey">API key</label>
+            <label class="flabel" for="apiKey" data-i18n="ai.key">API key</label>
             <div class="keyrow">
-              <div class="inp"><input id="apiKey" type="password" spellcheck="false" autocomplete="off"><button class="eye" type="button" id="keyEye" aria-label="Tampilkan API key" title="Tampilkan"><svg class="ic"><use href="#i-eye"/></svg></button></div>
-              <button class="btn" type="button" id="testConn">Tes koneksi</button>
+              <div class="inp"><input id="apiKey" type="password" spellcheck="false" autocomplete="off"><button class="eye" type="button" id="keyEye" data-i18n-attr="aria-label:ai.showAria;title:ai.show" aria-label="Show API key" title="Show"><svg class="ic"><use href="#i-eye"/></svg></button></div>
+              <button class="btn" type="button" id="testConn" data-i18n="ai.test">Test connection</button>
             </div>
             <p class="fhint" id="keyHint"></p>
           </div>
-          <div class="note warn"><svg class="ic"><use href="#i-alert"/></svg><span>Gambar dari dokumen akan dikirim ke <b id="provName">penyedia AI</b>. Untuk dokumen rahasia, pakai mode Offline.</span></div>
+          <div class="note warn"><svg class="ic"><use href="#i-alert"/></svg><span id="aiSendNote"></span></div>
           <details class="adv" id="advBox">
-            <summary>Lanjutan: model dan alamat server</summary>
+            <summary data-i18n="ai.adv">Advanced: model and server address</summary>
             <div class="field">
-              <label class="flabel" for="modelName">Model</label>
+              <label class="flabel" for="modelName" data-i18n="ai.model">Model</label>
               <div class="inp"><input id="modelName" type="text" spellcheck="false"></div>
-              <p class="fhint">Model harus bisa membaca gambar untuk mode AI. Untuk rangkuman mind map, model teks biasa sudah cukup.</p>
+              <p class="fhint" data-i18n="ai.modelHint">For AI mode the model must be able to read images. For mind map summaries, a regular text model is enough.</p>
             </div>
             <div class="field">
-              <label class="flabel" for="baseUrl">Alamat server (kompatibel OpenAI)</label>
+              <label class="flabel" for="baseUrl" data-i18n="ai.url">Server address (OpenAI-compatible)</label>
               <div class="inp"><input id="baseUrl" type="text" spellcheck="false" placeholder="https://…/v1"></div>
             </div>
           </details>
@@ -315,8 +338,9 @@
       <div class="dfoot">
         <span class="fmsg" id="testMsg"></span>
         <span class="gap"></span>
-        <button class="btn" type="button" data-close>Batal</button>
-        <button class="btn primary" type="button" id="dSave">Simpan &amp; pakai mode ini</button>
+        <button class="btn" type="button" id="dCancel" data-close data-i18n="cancel">Cancel</button>
+        <button class="btn primary" type="button" id="dSave" data-i18n="set.saveUse">Save &amp; use this mode</button>
+        <button class="btn primary" type="button" id="dDone" data-close data-i18n="set.done">Done</button>
       </div>
     </div>
   </div>
@@ -325,31 +349,31 @@
   <div class="scrim" id="dlgSupport" hidden>
     <div class="dialog narrow" role="dialog" aria-modal="true" aria-labelledby="s-title">
       <div class="dhead">
-        <div><h4 id="s-title">Dukung Urai App</h4><p>Urai App gratis dan open source. Semua fitur bisa dipakai tanpa membayar.</p></div>
-        <button class="btn quiet sm x" type="button" data-close aria-label="Tutup"><svg class="ic"><use href="#i-x"/></svg></button>
+        <div><h4 id="s-title" data-i18n="sup.title">Support Urai App</h4><p data-i18n="sup.sub">Urai App is free and open source. Every feature works without paying.</p></div>
+        <button class="btn quiet sm x" type="button" data-close data-i18n-attr="aria-label:close" aria-label="Close"><svg class="ic"><use href="#i-x"/></svg></button>
       </div>
       <div class="dbody">
         <div class="sup">
           <div class="qr" id="qrBox">
-            <img id="qrImg" alt="QRIS GoPay Merchant atas nama mahesarnol app" hidden>
-            <div id="qrPlaceholder" role="img" aria-label="Tempat QRIS. QRIS resmi belum dipasang di versi ini.">
+            <img id="qrImg" alt="QRIS" hidden>
+            <div id="qrPlaceholder" role="img" data-i18n-attr="aria-label:sup.qrPending" aria-label="QRIS placeholder. The official QRIS isn’t included in this version.">
               <div class="grid" id="qrGrid"></div>
-              <div class="stamp"><span>QRIS resmi<br>menyusul</span></div>
+              <div class="stamp"><span data-i18n-html="sup.stamp">Official QRIS<br>coming soon</span></div>
             </div>
             <div class="qrlabel">QRIS · GoPay Merchant</div>
           </div>
           <div>
-            <h5>Traktir kopi pengembang</h5>
-            <p id="supText">Kalau Urai App membantu pekerjaan Anda, scan QRIS ini dari aplikasi bank atau dompet digital apa pun. Nominal bebas.</p>
-            <dl class="payee"><dt>Penerima</dt><dd id="payeeName">mahesarnol app</dd><dt>Bisa dari</dt><dd>GoPay, OVO, DANA, ShopeePay, LinkAja, mobile banking</dd></dl>
-            <p class="fhint">Pastikan nama penerima di layar pembayaran adalah <b id="payeeName2">mahesarnol app</b>. Unduh Urai App hanya dari GitHub atau Google Drive resmi.</p>
+            <h5 data-i18n="coffee">Buy the developer a coffee</h5>
+            <p id="supText"></p>
+            <dl class="payee"><dt data-i18n="sup.payee">Recipient</dt><dd id="payeeName"></dd><dt data-i18n="sup.from">Pay with</dt><dd data-i18n="sup.apps">GoPay, OVO, DANA, ShopeePay, LinkAja, mobile banking</dd></dl>
+            <p class="fhint" id="payeeCheck"></p>
           </div>
         </div>
       </div>
       <div class="dfoot">
         <span class="gap"></span>
-        <button class="btn" type="button" data-close>Nanti saja</button>
-        <button class="btn primary" type="button" id="supDone">Sudah mendukung</button>
+        <button class="btn" type="button" data-close data-i18n="sup.later">Maybe later</button>
+        <button class="btn primary" type="button" id="supDone" data-i18n="sup.done">I’ve supported</button>
       </div>
     </div>
   </div>
@@ -358,48 +382,46 @@
   <div class="scrim" id="dlgAbout" hidden>
     <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="a-title">
       <div class="dhead">
-        <div><div class="about-top"><h4 id="a-title">Urai App</h4><span class="ver" id="aboutVer">Versi 3.0.0</span></div><p>Urai dokumen jadi teks Markdown yang rapi.</p></div>
-        <button class="btn quiet sm x" type="button" data-close aria-label="Tutup"><svg class="ic"><use href="#i-x"/></svg></button>
+        <div><div class="about-top"><h4 id="a-title">Urai App</h4><span class="ver" id="aboutVer"></span></div><p data-i18n="about.sub">Turn documents into clean Markdown text.</p></div>
+        <button class="btn quiet sm x" type="button" data-close data-i18n-attr="aria-label:close" aria-label="Close"><svg class="ic"><use href="#i-x"/></svg></button>
       </div>
       <div class="dbody">
         <p class="credit" id="aboutCredit"></p>
         <div class="field">
-          <span class="flabel">Kontak dan kode sumber</span>
-          <div class="crow"><span class="k">Email</span><span class="v" id="aboutMail"></span><button class="btn sm" type="button" id="copyMail"><svg class="ic"><use href="#i-copy"/></svg>Salin</button></div>
-          <div class="crow"><span class="k">X, Instagram</span><span class="v" id="aboutSocial"></span></div>
-          <div class="crow"><span class="k">Kode sumber</span><span class="v" id="aboutRepo">GitHub, tautan menyusul</span><button class="btn sm" type="button" id="openRepo" hidden><svg class="ic"><use href="#i-open"/></svg>Buka</button></div>
+          <span class="flabel" data-i18n="about.source">Source code</span>
+          <div class="crow"><span class="k">GitHub</span><span class="v" id="aboutRepo"></span><button class="btn sm" type="button" id="openRepo" hidden data-i18n="open"><svg class="ic"><use href="#i-open"/></svg>Open</button></div>
         </div>
         <div class="field">
-          <span class="flabel">Privasi</span>
-          <p class="fhint">Urai App tidak mengumpulkan data apa pun dan tidak punya server. Dokumen hanya keluar dari komputer ini bila Anda memakai mode AI atau Rangkuman AI (dikirim ke penyedia AI pilihan Anda), menambah link YouTube atau halaman web (diambil dari situsnya), atau mengubah rekaman suara (dikirim ke layanan pengenal suara Google).</p>
+          <span class="flabel" data-i18n="about.privacy">Privacy</span>
+          <p class="fhint" data-i18n="about.privacyText">Urai App doesn’t collect any data and has no server. Your documents only leave this computer when you use AI mode or AI summary (sent to the AI provider you chose), add a YouTube or web page link (fetched from that site), or convert a voice recording (sent to Google’s speech recognition service).</p>
         </div>
         <div class="field">
-          <span class="flabel">Komponen pihak ketiga</span>
+          <span class="flabel" data-i18n="about.third">Third-party components</span>
           <table class="lic">
-            <thead><tr><th>Komponen</th><th>Kegunaan</th><th>Lisensi</th></tr></thead>
+            <thead><tr><th data-i18n="about.thComp">Component</th><th data-i18n="about.thUse">Used for</th><th data-i18n="about.thLic">License</th></tr></thead>
             <tbody>
-              <tr><td>MarkItDown</td><td>Mesin konversi dokumen</td><td>MIT</td></tr>
-              <tr><td>Tesseract OCR</td><td>Baca scan offline</td><td>Apache 2.0</td></tr>
-              <tr><td>pypdfium2 (PDFium)</td><td>Membuka halaman PDF</td><td>BSD-3 / Apache 2.0</td></tr>
-              <tr><td>pywebview</td><td>Jendela aplikasi</td><td>BSD-3</td></tr>
-              <tr><td>OpenAI Python SDK</td><td>Menghubungi penyedia AI</td><td>Apache 2.0</td></tr>
-              <tr><td>youtube-transcript-api</td><td>Transkrip YouTube</td><td>MIT</td></tr>
-              <tr><td>SpeechRecognition</td><td>Rekaman suara ke teks</td><td>BSD-3</td></tr>
-              <tr><td>markmap, d3</td><td>Mind map</td><td>MIT, ISC</td></tr>
-              <tr><td>ReportLab</td><td>Membuat PDF mind map</td><td>BSD-3</td></tr>
-              <tr><td>Plus Jakarta Sans, JetBrains Mono</td><td>Huruf</td><td>OFL 1.1</td></tr>
-              <tr><td>Pustaka pendukung lain</td><td>Pendukung</td><td>MIT, BSD, Apache, MPL 2.0</td></tr>
+              <tr><td>MarkItDown</td><td data-i18n="lic.markitdown">Document conversion engine</td><td>MIT</td></tr>
+              <tr><td>Tesseract OCR</td><td data-i18n="lic.tesseract">Offline scan reading</td><td>Apache 2.0</td></tr>
+              <tr><td>pypdfium2 (PDFium)</td><td data-i18n="lic.pdfium">Opening PDF pages</td><td>BSD-3 / Apache 2.0</td></tr>
+              <tr><td>pywebview</td><td data-i18n="lic.pywebview">App window</td><td>BSD-3</td></tr>
+              <tr><td>OpenAI Python SDK</td><td data-i18n="lic.openai">Talking to AI providers</td><td>Apache 2.0</td></tr>
+              <tr><td>youtube-transcript-api</td><td data-i18n="lic.yt">YouTube transcripts</td><td>MIT</td></tr>
+              <tr><td>SpeechRecognition</td><td data-i18n="lic.speech">Voice recordings to text</td><td>BSD-3</td></tr>
+              <tr><td>markmap, d3</td><td data-i18n="lic.markmap">Mind map</td><td>MIT, ISC</td></tr>
+              <tr><td>ReportLab</td><td data-i18n="lic.reportlab">Mind map PDFs</td><td>BSD-3</td></tr>
+              <tr><td>Plus Jakarta Sans, JetBrains Mono</td><td data-i18n="lic.fonts">Fonts</td><td>OFL 1.1</td></tr>
+              <tr><td data-i18n="lic.others">Other supporting libraries</td><td data-i18n="lic.support">Supporting code</td><td>MIT, BSD, Apache, MPL 2.0</td></tr>
             </tbody>
           </table>
-          <p class="fhint">Teks lengkap semua lisensi ada di file THIRD-PARTY-NOTICES.txt di folder aplikasi.</p>
+          <p class="fhint" data-i18n="about.notices">The full text of every license is in THIRD-PARTY-NOTICES.txt in the app folder.</p>
         </div>
       </div>
       <div class="dfoot">
         <span class="fmsg" id="updMsg"></span>
         <span class="gap"></span>
-        <button class="btn" type="button" id="getUpd" hidden>Buka halaman unduhan</button>
-        <button class="btn" type="button" id="chkUpd">Cek pembaruan</button>
-        <button class="btn" type="button" id="openLic">Lihat lisensi lengkap</button>
+        <button class="btn" type="button" id="getUpd" hidden data-i18n="about.getUpd">Open download page</button>
+        <button class="btn" type="button" id="chkUpd" data-i18n="about.chkUpd">Check for updates</button>
+        <button class="btn" type="button" id="openLic" data-i18n="about.lic">View full licenses</button>
       </div>
     </div>
   </div>
@@ -408,28 +430,28 @@
   <div class="scrim" id="dlgHelp" hidden>
     <div class="dialog wide" role="dialog" aria-modal="true" aria-labelledby="h-title">
       <div class="dhead">
-        <div><h4 id="h-title">Panduan singkat</h4><p>Tiga langkah, dari dokumen sampai file Markdown.</p></div>
-        <button class="btn quiet sm x" type="button" data-close aria-label="Tutup"><svg class="ic"><use href="#i-x"/></svg></button>
+        <div><h4 id="h-title" data-i18n="help.title">Quick guide</h4><p data-i18n="help.sub">Three steps, from document to Markdown file.</p></div>
+        <button class="btn quiet sm x" type="button" data-close data-i18n-attr="aria-label:close" aria-label="Close"><svg class="ic"><use href="#i-x"/></svg></button>
       </div>
       <div class="dbody">
         <ol class="guide">
-          <li><b>Tambahkan dokumen</b><span>Tarik file atau folder dari File Explorer ke jendela ini, atau tekan tombol <b>File</b> dan <b>Folder</b>. Link YouTube dan halaman web ditempel di kolom paling bawah, lalu tekan Enter. Bisa juga klik kanan file di File Explorer, pilih <b>Kirim ke › Urai App</b>.</span></li>
-          <li><b>Atur hasil</b><span>Pilih <b>Satu file per dokumen</b> atau <b>Gabung jadi satu</b>. Untuk gabungan, urutan isi mengikuti daftar; seret pegangan titik-titik untuk memindahkan. Pilih cara membaca scan: <b>Mati</b>, <b>Offline</b> (gratis, di komputer ini), atau <b>AI</b> (lebih akurat, memakai API key Anda).</span></li>
-          <li><b>Tekan tombol biru</b><span>Atau Ctrl + Enter. File .md tersimpan di folder pilihan Anda. Dari panel hasil, buka file, salin teks, atau buat <b>Mind map</b> dari isinya.</span></li>
+          <li><b data-i18n="help.s1">Add documents</b><span data-i18n-html="help.s1t"></span></li>
+          <li><b data-i18n="help.s2">Choose output</b><span data-i18n-html="help.s2t"></span></li>
+          <li><b data-i18n="help.s3">Press the blue button</b><span data-i18n-html="help.s3t"></span></li>
         </ol>
         <div class="field">
-          <span class="flabel">Tips</span>
+          <span class="flabel" data-i18n="help.tips">Tips</span>
           <ul class="tips">
-            <li>File Markdown (.md) cocok diunggah ke ChatGPT, Claude, Gemini, atau NotebookLM. Ukurannya jauh lebih kecil dari PDF dan isinya lebih mudah dibaca AI.</li>
-            <li><b>PDF hasil scan</b> dikenali otomatis dan diberi label. Untuk scan buram atau foto dari HP, pilih Ketelitian <b>Teliti</b> di Pengaturan.</li>
-            <li><b>Mind map</b>: Struktur dokumen gratis dan offline, cocok untuk Word dan PowerPoint yang punya judul dan subjudul. Rangkuman AI lebih ringkas dan punya jenis Umum, Notulen, dan Laporan. Rangkuman AI bisa keliru, selalu periksa kembali.</li>
-            <li><b>Link YouTube</b> (Eksperimental): hanya video yang punya subtitle atau transkrip. Transkrip bahasa Indonesia diambil lebih dulu, lalu bahasa Inggris.</li>
-            <li><b>Rekaman suara</b> (Eksperimental): rekaman dikirim ke layanan pengenal suara Google, bahasa Indonesia. File WAV langsung bisa. MP3 dan M4A butuh FFmpeg terpasang di komputer. <button class="linkbtn" type="button" data-link="ffmpeg">Unduh FFmpeg</button></li>
-            <li>Ada masalah? Kirim email beserta file catatan dari folder <b>%APPDATA%\UraiApp\logs</b>. Isi dokumen Anda tidak tercatat di sana.</li>
+            <li data-i18n-html="help.t1"></li>
+            <li data-i18n-html="help.t2"></li>
+            <li data-i18n-html="help.t3"></li>
+            <li data-i18n-html="help.t4"></li>
+            <li><span data-i18n-html="help.t5"></span> <button class="linkbtn" type="button" data-link="ffmpeg" data-i18n="help.ffmpeg">Download FFmpeg</button></li>
+            <li><span data-i18n-html="help.t6"></span> <button class="linkbtn" type="button" data-link="issues" data-i18n="help.issues">Report a problem on GitHub</button></li>
           </ul>
         </div>
       </div>
-      <div class="dfoot"><span class="gap"></span><button class="btn primary" type="button" data-close>Mengerti</button></div>
+      <div class="dfoot"><span class="gap"></span><button class="btn primary" type="button" data-close data-i18n="help.ok">Got it</button></div>
     </div>
   </div>
 
@@ -437,38 +459,39 @@
   <div class="scrim" id="dlgPdf" hidden>
     <div class="dialog narrow" role="dialog" aria-modal="true" aria-labelledby="p-title">
       <div class="dhead">
-        <div><h4 id="p-title">Simpan mind map sebagai PDF</h4><p>Siap dicetak atau dilampirkan ke laporan.</p></div>
-        <button class="btn quiet sm x" type="button" data-close aria-label="Tutup"><svg class="ic"><use href="#i-x"/></svg></button>
+        <div><h4 id="p-title" data-i18n="pdf.title">Save mind map as PDF</h4><p data-i18n="pdf.sub">Ready to print or attach to a report.</p></div>
+        <button class="btn quiet sm x" type="button" data-close data-i18n-attr="aria-label:close" aria-label="Close"><svg class="ic"><use href="#i-x"/></svg></button>
       </div>
       <div class="dbody">
         <div class="pdfprev">
-          <div class="pbox"><div class="paper" id="pdfPaper"><div class="ph" id="pdfHead"><span class="pt"></span><span class="pd"></span></div><img id="pdfImg" alt="Pratinjau mind map di halaman PDF"><span class="pl" id="pdfLbl"></span></div></div>
+          <div class="pbox"><div class="paper" id="pdfPaper"><div class="ph" id="pdfHead"><span class="pt"></span><span class="pd"></span></div><img id="pdfImg" data-i18n-attr="alt:pdf.alt" alt="Preview of the mind map on a PDF page"><span class="pl" id="pdfLbl"></span></div></div>
           <div class="pinfo" id="pdfInfo"></div>
         </div>
-        <div class="field"><span class="flabel">Ukuran kertas</span><div class="mseg" id="pdfSize" role="group" aria-label="Ukuran kertas"><button type="button" data-v="A4">A4</button><button type="button" data-v="A3">A3</button><button type="button" data-v="F4">F4 (folio)</button></div></div>
-        <div class="field"><span class="flabel">Orientasi</span><div class="mseg" id="pdfOrient" role="group" aria-label="Orientasi"><button type="button" data-v="land">Mendatar</button><button type="button" data-v="port">Tegak</button></div></div>
-        <div class="field"><span class="flabel">Isi PDF</span>
-          <label class="toggle" for="pdfTitle"><input type="checkbox" id="pdfTitle" checked> Judul dokumen dan tanggal</label>
-          <label class="toggle" for="pdfLabel" id="pdfLabelRow"><input type="checkbox" id="pdfLabel" checked> Label sumber rangkuman ("Rangkuman AI, periksa kembali")</label>
-          <label class="toggle" for="pdfText"><input type="checkbox" id="pdfText"> Halaman tambahan berisi rangkuman dalam bentuk teks</label>
+        <div class="field"><span class="flabel" data-i18n="pdf.size">Paper size</span><div class="mseg" id="pdfSize" role="group" data-i18n-attr="aria-label:pdf.size" aria-label="Paper size"><button type="button" data-v="A4">A4</button><button type="button" data-v="A3">A3</button><button type="button" data-v="F4">F4 (folio)</button></div></div>
+        <div class="field"><span class="flabel" data-i18n="pdf.orient">Orientation</span><div class="mseg" id="pdfOrient" role="group" data-i18n-attr="aria-label:pdf.orient" aria-label="Orientation"><button type="button" data-v="land" data-i18n="pdf.land">Landscape</button><button type="button" data-v="port" data-i18n="pdf.port">Portrait</button></div></div>
+        <div class="field"><span class="flabel" data-i18n="pdf.content">Include</span>
+          <label class="toggle" for="pdfTitle" data-i18n="pdf.optTitle"><input type="checkbox" id="pdfTitle" checked> Document title and date</label>
+          <label class="toggle" for="pdfLabel" id="pdfLabelRow" data-i18n="pdf.optLabel"><input type="checkbox" id="pdfLabel" checked> Summary source label (“AI summary, please double-check”)</label>
+          <label class="toggle" for="pdfText" data-i18n="pdf.optText"><input type="checkbox" id="pdfText"> An extra page with the summary as text</label>
         </div>
       </div>
       <div class="dfoot">
         <span class="fmsg" id="pdfMsg"></span>
         <span class="gap"></span>
-        <button class="btn" type="button" data-close>Batal</button>
-        <button class="btn primary" type="button" id="pdfSave">Simpan PDF</button>
+        <button class="btn" type="button" data-close data-i18n="cancel">Cancel</button>
+        <button class="btn primary" type="button" id="pdfSave" data-i18n="pdf.save">Save PDF</button>
       </div>
     </div>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <div class="boot" id="boot">Memuat Urai App…</div>
+  <div class="boot" id="boot" data-i18n="boot">Loading Urai App…</div>
 </div>
 
 <script src="vendor/d3.min.js"></script>
 <script src="vendor/markmap-view.js"></script>
 <script src="vendor/markmap-lib.js"></script>
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -13,10 +13,11 @@ from typing import Callable
 from PIL import Image
 
 from . import ai as ai_mod
-from .errors import Cancelled, OcrUnavailable, friendly_error
-from .fileinfo import SCAN_CHARS, embedded_images, inspect_file, pdf_text_lengths
+from .errors import Cancelled, OcrUnavailable, error_ref
+from .fileinfo import SCAN_CHARS, embedded_images, inspect_file, kind_label, meta_text, pdf_text_lengths
+from .i18n import t
 from .links import host_of, is_youtube
-from .ocr import DPI, LANG_NAMES, engine, worker_count
+from .ocr import DPI, engine, lang_name, worker_count
 from .paths import default_output_dir
 from .textutil import base_name, build_combined, safe_filename, unique_path, word_count
 
@@ -46,10 +47,16 @@ class Item:
     output: str = ""
     title: str = ""
     result: str = field(default="", repr=False)
+    # Bahan untuk menyusun ulang teks buatan aplikasi saat bahasa diganti (tidak dikirim ke tampilan).
+    facts: dict = field(default_factory=dict, repr=False)  # halaman, slide, sheet, ukuran gambar
+    msg_ref: tuple = field(default=(), repr=False)         # (kunci teks, argumen) untuk message
+
+    _PRIVATE = ("result", "facts", "msg_ref")
 
     def public(self) -> dict:
         d = asdict(self)
-        d.pop("result")
+        for k in self._PRIVATE:
+            d.pop(k)
         d["display"] = self.display_name
         return d
 
@@ -59,6 +66,28 @@ class Item:
 
     def reset(self) -> None:
         self.status, self.sub, self.words, self.message, self.fix, self.output, self.result = "idle", "", 0, "", "", "", ""
+        self.msg_ref = ()
+
+    def say(self, key: str, **kw) -> None:
+        """Isi pesan baris ini. Kuncinya disimpan supaya pesan ikut berganti bahasa."""
+        self.msg_ref = (key, kw)
+        self.message = t(key, **kw)
+
+    def say_error(self, exc: BaseException) -> None:
+        key, kw = error_ref(exc)
+        self.say(key, **kw)
+
+    def localize(self) -> None:
+        """Susun ulang nama link, keterangan, dan pesan dalam bahasa aktif."""
+        if self.is_link:
+            host = host_of(self.source)
+            self.name = t("link.yt_name") if self.kind == "yt" else t("link.web_name", host=host)
+            self.meta = f"{kind_label(self.kind)} · {host}"
+        else:
+            self.meta = meta_text(self.kind, self.size, self.facts)
+        if self.msg_ref:
+            key, kw = self.msg_ref
+            self.message = t(key, **kw)
 
 
 def _new_id() -> str:
@@ -70,16 +99,15 @@ def item_from_path(path: str | Path) -> Item:
     info = inspect_file(p)
     return Item(id=_new_id(), source=str(p), is_link=False, kind=info["kind"], name=p.name, meta=info["meta"],
                 badge=info["badge"], size=info["size"], pages=info["pages"], scan=info["scan"],
-                mixed=bool(info.get("mixed")), exp=info["exp"])
+                mixed=bool(info.get("mixed")), exp=info["exp"], facts=dict(info["facts"]))
 
 
 def item_from_link(url: str) -> Item:
     yt = is_youtube(url)
-    host = host_of(url)
-    return Item(id=_new_id(), source=url, is_link=True, kind="yt" if yt else "web",
-                name="Video YouTube" if yt else f"Halaman {host}",
-                meta=f"Link YouTube · {host}" if yt else f"Link halaman web · {host}",
+    item = Item(id=_new_id(), source=url, is_link=True, kind="yt" if yt else "web", name="", meta="",
                 badge="" if yt else "WEB", exp=yt)
+    item.localize()
+    return item
 
 
 @dataclass
@@ -90,7 +118,7 @@ class Options:
     embedded: bool = True
     ai: ai_mod.AIConfig | None = None
     out_mode: str = "separate"  # separate | combined
-    combined_name: str = "Gabungan"
+    combined_name: str = ""  # kosong berarti nama bawaan sesuai bahasa ("Combined" atau "Gabungan")
     location: str = "custom"  # same | custom
     custom_dir: str = ""
 
@@ -128,9 +156,9 @@ class Converter:
 
     def _ocr_label(self) -> str:
         if self.opts.ocr_mode == "ai" and self.opts.ai:
-            return f"AI ({self.opts.ai.name})"
-        names = ", ".join(LANG_NAMES.get(l, l) for l in self.langs())
-        return f"OCR offline ({names})"
+            return t("ocr.label_ai", name=self.opts.ai.name)
+        names = ", ".join(lang_name(l) for l in self.langs())
+        return t("ocr.label_offline", names=names)
 
     def langs(self) -> list[str]:
         if self._langs is None:
@@ -147,7 +175,7 @@ class Converter:
             out = []
             for k, img in enumerate(images, 1):
                 self._check()
-                out.append(ai_mod.vision_text(self.opts.ai, img, ai_mod.OCR_PROMPT))
+                out.append(ai_mod.vision_text(self.opts.ai, img, ai_mod.prompt("ocr")))
                 progress(k, total)
             return out
         tess = engine()
@@ -185,11 +213,11 @@ class Converter:
             if ai:
                 for k, i in enumerate(indices, 1):
                     self._check()
-                    self._sub(item, f"{label} · halaman {k} dari {total}")
+                    self._sub(item, t("sub.page", label=label, k=k, n=total))
                     page = doc[i]
                     img = page.render(scale=scale).to_pil()
                     page.close()
-                    results[i] = ai_mod.vision_text(self.opts.ai, img, ai_mod.OCR_PROMPT)
+                    results[i] = ai_mod.vision_text(self.opts.ai, img, ai_mod.prompt("ocr"))
                 return results
             tess = engine()
             if not tess.available:
@@ -207,9 +235,9 @@ class Converter:
                 for f in finished:
                     results[pending.pop(f)] = f.result()
                     done += 1
-                    self._sub(item, f"{label} · halaman {done} dari {total}")
+                    self._sub(item, t("sub.page", label=label, k=done, n=total))
 
-            self._sub(item, f"{label} · halaman 0 dari {total}")
+            self._sub(item, t("sub.page", label=label, k=0, n=total))
             with cf.ThreadPoolExecutor(max_workers=workers) as ex:
                 try:
                     for i in indices:
@@ -249,16 +277,16 @@ class Converter:
         if item.kind == "pdf" and mode != "off":
             return self._convert_pdf(item)
         if item.kind == "aud":
-            self._sub(item, "Mengubah suara jadi teks (bahasa Indonesia)…")
+            self._sub(item, t("sub.audio"))  # rekaman dianggap berbahasa Indonesia, apa pun bahasa aplikasi
             return _md_text(markitdown().convert(path, language="id-ID"))
-        self._sub(item, "Membaca dokumen…")
+        self._sub(item, t("sub.doc"))
         text = _md_text(markitdown().convert(path))
         if mode != "off" and self.opts.embedded and item.kind in ("doc", "ppt", "xls"):
             text = self._append_embedded(item, text)
         return text
 
     def _convert_link(self, item: Item) -> str:
-        self._sub(item, "Mengambil judul dan transkrip…" if item.kind == "yt" else "Membaca halaman web…")
+        self._sub(item, t("sub.yt") if item.kind == "yt" else t("sub.web"))
         res = markitdown().convert(item.source, youtube_transcript_languages=["id", "en"])
         title = (getattr(res, "title", None) or "").strip()
         if title:
@@ -266,25 +294,25 @@ class Converter:
         return _md_text(res)
 
     def _convert_image(self, item: Item) -> str:
-        self._sub(item, f"{self._ocr_label()} · membaca gambar…")
+        self._sub(item, t("sub.image_read", label=self._ocr_label()))
         with Image.open(item.source) as im:
             im.load()
             img = im.copy()
         if self._use_ai():
-            text = ai_mod.vision_text(self.opts.ai, img, ai_mod.IMAGE_PROMPT)
+            text = ai_mod.vision_text(self.opts.ai, img, ai_mod.prompt("image"))
         else:
-            text = self.read_images([img], lambda d, t: None)[0]
+            text = self.read_images([img], lambda done, total: None)[0]
         if not text.strip():
             return ""
-        return f"# {base_name(item.name)}\n\n> Dibaca dengan {self._ocr_label()}\n\n{text}"
+        return f"# {base_name(item.name)}\n\n{t('md.read_with', label=self._ocr_label())}\n\n{text}"
 
     def _convert_pdf(self, item: Item) -> str:
         path = item.source
-        self._sub(item, "Memeriksa halaman…")
+        self._sub(item, t("sub.check_pages"))
         lengths = pdf_text_lengths(path)
         scanned = [i for i, n in enumerate(lengths) if n < SCAN_CHARS]
         if not scanned:
-            self._sub(item, f"Membaca {len(lengths)} halaman…")
+            self._sub(item, t("sub.read_pages", n=len(lengths)))
             return _md_text(markitdown().convert(path))
         if not self._use_ai() and not engine().available:
             if len(scanned) >= 0.5 * len(lengths):
@@ -294,15 +322,15 @@ class Converter:
         if len(scanned) >= 0.5 * len(lengths):
             texts = self.ocr_pdf_pages(path, scanned, item)
             plain = self._pdf_plain_text(path, [i for i in range(len(lengths)) if i not in texts])
-            parts = [f"> Dibaca dengan {label} · {len(scanned)} dari {len(lengths)} halaman hasil scan"]
+            parts = [t("md.scan_note", label=label, k=len(scanned), n=len(lengths))]
             for i in range(len(lengths)):
                 body = (texts.get(i) if i in texts else plain.get(i, "")).strip()
-                parts.append(f"## Halaman {i + 1}\n\n{body or '_(halaman kosong)_'}")
+                parts.append(f"## {t('md.page', n=str(i + 1))}\n\n{body or t('md.blank_page')}")
             return "\n\n".join(parts)
         base = _md_text(markitdown().convert(path))
         texts = self.ocr_pdf_pages(path, scanned, item)
-        extra = [f"## Teks dari halaman hasil scan\n\n> Dibaca dengan {label}"]
-        extra += [f"### Halaman {i + 1}\n\n{texts[i].strip() or '_(tidak ada teks terbaca)_'}" for i in scanned]
+        extra = [f"## {t('md.scan_pages_head')}\n\n{t('md.read_with', label=label)}"]
+        extra += [f"### {t('md.page', n=str(i + 1))}\n\n{texts[i].strip() or t('md.no_text_read')}" for i in scanned]
         return base + "\n\n" + "\n\n".join(extra)
 
     @staticmethod
@@ -337,12 +365,13 @@ class Converter:
                 im.load()
                 imgs.append(im.copy())
         total = len(imgs)
-        self._sub(item, f"{label} · gambar 0 dari {total}")
-        texts = self.read_images(imgs, lambda d, t: self._sub(item, f"{label} · gambar {d} dari {t}"))
-        blocks = [f"### Gambar {k} ({name})\n\n{t.strip()}" for k, ((name, _), t) in enumerate(zip(found, texts), 1) if len(t.strip()) >= 6]
+        self._sub(item, t("sub.image_k", label=label, k=0, n=total))
+        texts = self.read_images(imgs, lambda done, n: self._sub(item, t("sub.image_k", label=label, k=done, n=n)))
+        blocks = [f"### {t('md.image_k', k=k, name=name)}\n\n{found_text.strip()}"
+                  for k, ((name, _), found_text) in enumerate(zip(found, texts), 1) if len(found_text.strip()) >= 6]
         if not blocks:
             return text
-        return text + "\n\n## Teks dari gambar di dalam dokumen\n\n" + f"> Dibaca dengan {label}\n\n" + "\n\n".join(blocks)
+        return text + f"\n\n## {t('md.images_head')}\n\n{t('md.read_with', label=label)}\n\n" + "\n\n".join(blocks)
 
 
 def output_dir_for(item: Item | None, opts: Options) -> Path:
@@ -365,12 +394,12 @@ def _write(target: Path, text: str) -> Path:
 
 
 def _empty_message(item: Item, opts: Options) -> tuple[str, str]:
+    """(kunci pesan, tindakan perbaikan) untuk dokumen yang tidak menghasilkan teks."""
     if item.kind in ("pdf", "img") and opts.ocr_mode == "off":
-        what = "dokumen ini hasil scan" if item.kind == "pdf" else "ini gambar"
-        return f"Tidak ada teks terbaca karena {what}.", "ocr"
+        return ("msg.empty_scan" if item.kind == "pdf" else "msg.empty_image"), "ocr"
     if item.kind == "aud":
-        return "Tidak ada ucapan yang dikenali di rekaman ini.", ""
-    return "Tidak ada teks yang bisa diambil dari file ini.", ""
+        return "msg.empty_audio", ""
+    return "msg.empty", ""
 
 
 def run_job(items: list[Item], opts: Options, emit: Emit, cancel: threading.Event) -> dict:
@@ -400,9 +429,10 @@ def run_job(items: list[Item], opts: Options, emit: Emit, cancel: threading.Even
             break
         except Exception as e:  # noqa: BLE001 - setiap file berdiri sendiri; error dicatat dan dilanjutkan
             log.exception("Gagal mengubah %s", it.source)
-            it.status, it.sub, it.message = "error", "", friendly_error(e)
+            it.status, it.sub = "error", ""
+            it.say_error(e)
             emit("item", it.public())
-            emit("log", {"text": f"Gagal: {it.display_name}. {it.message}"})
+            emit("log", {"text": t("log.failed", name=it.display_name, msg=it.message)})
             continue
         it.sub = ""
         it.result = text
@@ -410,10 +440,11 @@ def run_job(items: list[Item], opts: Options, emit: Emit, cancel: threading.Even
         it.status = "done"
         if not text:
             it.status = "warn"
-            it.message, it.fix = _empty_message(it, opts)
-        elif it.kind == "yt" and "### Transcript" not in text:
+            key, it.fix = _empty_message(it, opts)
+            it.say(key)
+        elif it.kind == "yt" and "### Transcript" not in text:  # judul bagian dari MarkItDown, selalu bahasa Inggris
             it.status = "warn"
-            it.message = "Transkrip tidak tersedia. Hanya judul dan deskripsi yang diambil."
+            it.say("msg.no_transcript")
         if opts.out_mode == "combined":
             entries.append((it.display_name, text))
         elif text:  # file kosong tidak disimpan; barisnya diberi tanda "Perlu dicek"
@@ -421,7 +452,7 @@ def run_job(items: list[Item], opts: Options, emit: Emit, cancel: threading.Even
             target = _write(output_dir_for(it, opts) / f"{stem}.md", text + "\n")
             it.output = str(target)
             out_dirs.append(str(target.parent))
-            emit("log", {"text": f"Tersimpan: {target}"})
+            emit("log", {"text": t("log.saved", path=str(target))})
         emit("item", it.public())
     emit("progress", {"done": sum(1 for i in items if i.status in ("done", "warn", "error")), "total": total, "current": None})
 
@@ -429,11 +460,12 @@ def run_job(items: list[Item], opts: Options, emit: Emit, cancel: threading.Even
     if opts.out_mode == "combined" and entries:
         combined_text = build_combined(entries)
         first_local = next((i for i in items if not i.is_link), None)
-        name = safe_filename(opts.combined_name, "Gabungan")
+        default = t("combined.default")
+        name = safe_filename(opts.combined_name.strip() or default, default)
         target = _write(output_dir_for(first_local, opts) / f"{name}.md", combined_text)
         combined_path = str(target)
         out_dirs.append(str(target.parent))
-        emit("log", {"text": f"File gabungan tersimpan: {target}"})
+        emit("log", {"text": t("log.combined_saved", path=str(target))})
 
     summary = {
         "cancelled": cancelled,

@@ -51,8 +51,8 @@ Unggah `UraiApp-3.0.0-Setup.exe` dan `SHA256SUMS.txt` dari halaman Releases ke f
 
 ## 5. Sebelum rilis publik
 
-- **QRIS**: simpan gambar QRIS GoPay Merchant sebagai `src/urai/web/img/qris.png` (lihat README di folder itu). Tanpa file ini, jendela Dukung menampilkan tempat kosong bertuliskan "QRIS resmi menyusul".
-- **Syarat Penggunaan dan Kebijakan Privasi**: drafnya menyusul; bagian Privasi di halaman Tentang sudah menjelaskan data apa saja yang keluar dari komputer.
+- **QRIS**: kode QR dukungan ada di `src/urai/web/img/qris.png` (hanya kotak QR, dengan margin putih). Untuk menggantinya, potong kotak QR saja dari poster GoPay Merchant yang baru, lalu isi `SUPPORT_MERCHANT` di `src/urai/info.py` dengan nama merchant yang tersimpan di dalam QR (nama itulah yang tampil di aplikasi pembayaran; QRIS memotongnya menjadi 25 karakter, jadi bisa berbeda dari poster). Tanpa gambar ini, jendela Dukung menampilkan tempat kosong bertuliskan "QRIS resmi menyusul".
+- **Syarat Penggunaan dan Kebijakan Privasi**: drafnya ada di [TERMS.id.md](TERMS.id.md) dan [PRIVACY.id.md](PRIVACY.id.md) (beserta versi bahasa Inggris). Tinjau, putuskan bagian bertanda **[perlu diputuskan]**, lalu tautkan dari README.
 - **Ikon**: `packaging/urai.ico` masih ikon polos sementara (huruf U). Ganti dengan logo setelah nama aman didaftarkan.
 - **Peringatan SmartScreen**: installer yang belum ditandatangani akan memunculkan peringatan "Windows melindungi PC Anda" sampai cukup banyak orang mengunduhnya. Untuk menghilangkannya perlu sertifikat code signing (berbayar). Untuk proyek open source, [SignPath Foundation](https://signpath.org) menyediakan tanda tangan gratis.
 

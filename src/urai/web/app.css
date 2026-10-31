@@ -1,5 +1,6 @@
 /* Urai App 3.0. Tata letak: kepala, dua panel (Dokumen | Atur hasil/Proses/Hasil), bilah status.
-   Warna mengikuti tema Windows lewat prefers-color-scheme; token ada di .win dan .win[data-mode="dark"]. */
+   Tema (Sistem/Terang/Gelap) dipasang app.js lewat .win[data-mode]; Sistem mengikuti prefers-color-scheme.
+   Token warna ada di .win dan .win[data-mode="dark"]. */
 
 @font-face { font-family: "Plus Jakarta Sans"; font-weight: 400; font-display: swap; src: url("fonts/plus-jakarta-sans-latin-400-normal.woff2") format("woff2"); }
 @font-face { font-family: "Plus Jakarta Sans"; font-weight: 500; font-display: swap; src: url("fonts/plus-jakarta-sans-latin-500-normal.woff2") format("woff2"); }
@@ -344,9 +345,12 @@ details.adv .field { margin-top: 10px; }
 .fmsg.ok { color: var(--a-ok); } .fmsg.err { color: var(--a-err); } .fmsg.busy { color: var(--a-muted); }
 
 /* dukung + tentang + panduan */
-.sup { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 20px; align-items: start; }
-.qr { position: relative; padding: 12px 12px 10px; border-radius: 14px; background: var(--a-qr-bg); border: 1px solid var(--a-line); }
-.qr img { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+/* QRIS asli cukup padat (61 modul): kolom lebar supaya mudah dipindai HP dari layar */
+#dlgSupport .dialog { width: 660px; }
+.sup { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 20px; align-items: start; }
+.qr { position: relative; padding: 10px 10px 10px; border-radius: 14px; background: var(--a-qr-bg); border: 1px solid var(--a-line); }
+/* diperkecil dengan halus: "pixelated" pada rasio tak bulat membuat tebal modul QR tidak rata */
+.qr img { display: block; width: 100%; height: auto; object-fit: contain; image-rendering: auto; }
 .qr .grid { display: grid; grid-template-columns: repeat(25, 1fr); aspect-ratio: 1; }
 .qr .grid i { display: block; }
 .qr .grid i.on { background: var(--a-qr-ink); opacity: .16; }

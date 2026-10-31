@@ -120,4 +120,4 @@ Keduanya bergantung pada layanan pihak ketiga yang bisa berubah sewaktu-waktu.
 | "Batas pemakaian atau kuota habis" | Saldo atau kuota akun AI habis. Isi saldo, tunggu, atau pakai mode Offline. |
 | File tidak bisa disimpan | File dengan nama sama sedang terbuka di aplikasi lain, atau folder tidak bisa ditulisi. Hasil otomatis disimpan ke `Dokumen\Urai App`. |
 
-Masih bermasalah? Kirim email ke maheswara.as@gmail.com beserta file `%APPDATA%\UraiApp\logs\urai.log`. File catatan itu berisi nama file dan pesan error, bukan isi dokumen Anda.
+Masih bermasalah? Buka issue di <https://github.com/mahesarnol/urai-app/issues> dan, bila perlu, sertakan file `%APPDATA%\UraiApp\logs\urai.log`. File catatan itu berisi nama file dan pesan error, bukan isi dokumen Anda. Issues bersifat publik, jadi periksa dulu isinya dan hapus nama file atau folder yang tidak ingin dibagikan.

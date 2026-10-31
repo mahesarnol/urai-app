@@ -8,23 +8,46 @@ import zlib
 
 from PIL import Image
 
+from .i18n import get_lang, t
+
 PROVIDERS = {
     "claude": {"name": "Claude (Anthropic)", "base_url": "https://api.anthropic.com/v1/", "model": "claude-haiku-5-5", "key_link": "key_claude"},
     "gemini": {"name": "Google Gemini", "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/", "model": "gemini-3.8-flash", "key_link": "key_gemini"},
     "deepseek": {"name": "DeepSeek", "base_url": "https://api.deepseek.com", "model": "deepseek-flash", "key_link": "key_deepseek"},
     "openai": {"name": "OpenAI", "base_url": "", "model": "gpt-5.6-terra", "key_link": "key_openai"},
     "openrouter": {"name": "OpenRouter", "base_url": "https://openrouter.ai/api/v1", "model": "google/gemini-3.5-flash", "key_link": "key_openrouter"},
-    "other": {"name": "Server lain (kompatibel OpenAI)", "base_url": "", "model": "", "key_link": ""},
+    "other": {"name": "", "base_url": "", "model": "", "key_link": ""},  # nama tampilan dari i18n (ai.other_name)
 }
 
-OCR_PROMPT = (
-    "Tuliskan ulang seluruh teks yang terlihat pada gambar ini apa adanya, dengan urutan dan susunan seperti aslinya. "
-    "Jika ada tabel, tulis sebagai tabel Markdown. Jangan menambahkan komentar atau penjelasan."
-)
-IMAGE_PROMPT = (
-    "Tuliskan ulang seluruh teks yang terlihat pada gambar ini apa adanya. Jika gambar berisi foto, grafik, diagram, "
-    "atau bagian visual lain, jelaskan isinya secara singkat dan jelas dalam Bahasa Indonesia. Jangan menambahkan komentar lain."
-)
+# Perintah ke AI dalam bahasa aplikasi. Teks di gambar selalu ditulis ulang dalam bahasa aslinya;
+# hanya penjelasan bagian visual yang memakai bahasa aplikasi.
+PROMPTS = {
+    "en": {
+        "ocr": ("Rewrite all the text visible in this image exactly as it is, in its original language, keeping the original "
+                "order and layout. If there is a table, write it as a Markdown table. Do not add comments or explanations."),
+        "image": ("Rewrite all the text visible in this image exactly as it is, in its original language. If the image contains "
+                  "photos, charts, diagrams, or other visual parts, describe them briefly and clearly in English. "
+                  "Do not add any other comments."),
+        "test": "What color is this image? Answer in one word.",
+    },
+    "id": {
+        "ocr": ("Tuliskan ulang seluruh teks yang terlihat pada gambar ini apa adanya, dengan urutan dan susunan seperti aslinya. "
+                "Jika ada tabel, tulis sebagai tabel Markdown. Jangan menambahkan komentar atau penjelasan."),
+        "image": ("Tuliskan ulang seluruh teks yang terlihat pada gambar ini apa adanya. Jika gambar berisi foto, grafik, diagram, "
+                  "atau bagian visual lain, jelaskan isinya secara singkat dan jelas dalam Bahasa Indonesia. Jangan menambahkan komentar lain."),
+        "test": "Apa warna gambar ini? Jawab satu kata.",
+    },
+}
+
+
+def prompt(kind: str) -> str:
+    """Perintah "ocr", "image", atau "test" dalam bahasa aktif."""
+    return PROMPTS.get(get_lang(), PROMPTS["en"])[kind]
+
+
+def provider_name(provider: str) -> str:
+    preset = PROVIDERS.get(provider, PROVIDERS["other"])
+    return preset["name"] or t("ai.other_name")
 
 
 class AIConfig:
@@ -34,7 +57,10 @@ class AIConfig:
         self.api_key = (api_key or "").strip()
         self.model = (model or preset["model"]).strip()
         self.base_url = (preset["base_url"] if base_url is None else base_url).strip()
-        self.name = preset["name"]
+
+    @property
+    def name(self) -> str:
+        return provider_name(self.provider)
 
     @property
     def ready(self) -> bool:
@@ -64,11 +90,12 @@ def _content(resp) -> str:
     return (getattr(msg, "content", None) or "").strip()
 
 
-def vision_text(cfg: AIConfig, img: Image.Image, prompt: str = OCR_PROMPT) -> str:
+def vision_text(cfg: AIConfig, img: Image.Image, text: str | None = None) -> str:
+    """Kirim satu gambar beserta perintah (bawaan: tulis ulang teksnya)."""
     resp = cfg.client().chat.completions.create(
         model=cfg.model,
         messages=[{"role": "user", "content": [
-            {"type": "text", "text": prompt},
+            {"type": "text", "text": text or prompt("ocr")},
             {"type": "image_url", "image_url": {"url": _data_uri(img)}},
         ]}],
     )
@@ -97,4 +124,4 @@ def _tiny_png() -> bytes:
 def test_connection(cfg: AIConfig) -> str:
     """Kirim satu gambar kecil. Mengembalikan jawaban model, atau melempar exception."""
     img = Image.open(io.BytesIO(_tiny_png()))
-    return vision_text(cfg, img, "Apa warna gambar ini? Jawab satu kata.")
+    return vision_text(cfg, img, prompt("test"))

@@ -1,6 +1,7 @@
 /* Urai App 3.0: logika tampilan.
    Semua pekerjaan berat dikerjakan Python (api.py). Tampilan memanggil window.pywebview.api.<nama>(),
-   atau POST /api/<nama> saat dibuka di browser dengan ?dev=1 (devserver.py). Kabar proses diambil lewat poll(). */
+   atau POST /api/<nama> saat dibuka di browser dengan ?dev=1 (devserver.py). Kabar proses diambil lewat poll().
+   Semua teks tampilan ada di i18n.js; di sini dipanggil lewat T('kunci', { nilai }). */
 (() => {
   'use strict';
   const $ = (s, r = document) => r.querySelector(s);
@@ -29,16 +30,42 @@
   }
   async function safeCall(name, ...args) {
     try { return await call(name, ...args); }
-    catch (e) { console.error(name, e); toast('Terjadi kesalahan. Coba lagi, atau tutup dan buka ulang Urai App.'); return null; }
+    catch (e) { console.error(name, e); toast(T('err.generic')); return null; }
+  }
+
+  /* ---------- bahasa: kamus di i18n.js, angka mengikuti bahasa ---------- */
+  const I18N = window.URAI_I18N || { en: {} };
+  const LOC = () => (S.lang === 'id' ? 'id-ID' : 'en-US');
+  // nilai { one, other } dipilih dari vars.n; angka di vars ditulis sesuai bahasa (1,234 atau 1.234)
+  function T(key, vars) {
+    const d = I18N[S.lang] || I18N.en;
+    let s = d[key] != null ? d[key] : (I18N.en[key] != null ? I18N.en[key] : key);
+    if (s && typeof s === 'object') s = vars && vars.n === 1 ? s.one : s.other;
+    if (!vars) return s;
+    return String(s).replace(/\{(\w+)\}/g, (m, k) => vars[k] == null ? m : typeof vars[k] === 'number' ? fmt(vars[k]) : String(vars[k]));
+  }
+  // elemen berikon: hanya simpul teks terakhir yang diganti, supaya ikon tidak ikut terhapus
+  function setText(el, s) {
+    if (!el.firstElementChild) { el.textContent = s; return; }
+    const n = [...el.childNodes].reverse().find(x => x.nodeType === 3 && x.nodeValue.trim());
+    if (n) n.nodeValue = s; else el.append(s);
+  }
+  function applyI18n(root = document) {
+    $$('[data-i18n]', root).forEach(el => setText(el, T(el.dataset.i18n)));
+    $$('[data-i18n-html]', root).forEach(el => { el.innerHTML = T(el.dataset.i18nHtml); });
+    $$('[data-i18n-attr]', root).forEach(el => el.dataset.i18nAttr.split(';').forEach(p => {
+      const [a, k] = p.split(':').map(x => x.trim());
+      if (a && k) el.setAttribute(a, T(k));
+    }));
   }
 
   /* ---------- bantuan kecil ---------- */
-  const fmt = n => Number(n || 0).toLocaleString('id-ID');
+  const fmt = n => Number(n || 0).toLocaleString(LOC());
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const ic = (id, cls = '') => `<svg class="ic ${cls}"><use href="#i-${id}"/></svg>`;
   const baseName = name => String(name || '').replace(/\.[A-Za-z0-9]{2,5}$/, '');
-  const sizeText = b => b >= 1048576 ? (b / 1048576).toFixed(1).replace('.', ',') + ' MB' : b >= 1024 ? Math.round(b / 1024) + ' KB' : b + ' B';
-  const now = () => { const d = new Date(), p = x => String(x).padStart(2, '0'); return { date: `${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()}`, time: `${p(d.getHours())}.${p(d.getMinutes())}` }; };
+  const sizeText = b => b >= 1048576 ? (b / 1048576).toLocaleString(LOC(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' MB' : b >= 1024 ? fmt(Math.round(b / 1024)) + ' KB' : fmt(b) + ' B';
+  const clock = (t = Date.now()) => { const d = new Date(t), p = x => String(x).padStart(2, '0'); return p(d.getHours()) + (S.lang === 'id' ? '.' : ':') + p(d.getMinutes()); };
   const reduce = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
   const sep = p => (String(p).includes('\\') ? '\\' : '/');
   const lastParts = (p, n = 2) => { const s = sep(p); return String(p).split(/[\\/]/).filter(Boolean).slice(-n).join(` ${s} `); };
@@ -48,19 +75,21 @@
 
   /* ---------- keadaan ---------- */
   const S = {
+    lang: 'en',
     app: {}, providers: {}, models: {}, baseUrls: {}, keys: {}, tess: { available: false, langs: [], names: {} },
     set: {}, defaultDir: '', hasQris: false, hasSamples: true,
     items: [], busy: false, cancelling: false, done: null, sel: null, tab: 'view', rereading: null,
     progress: { done: 0, total: 0, current: null },
     texts: {}, pvShown: '',
-    pane: 'offline', dlg: { provider: 'gemini', typed: {}, models: {}, urls: {} },
-    mm: { src: 'struct', kind: 'umum', view: 'map', busy: false, busyKey: '', busyText: '', cache: {}, style: null },
+    pane: 'general', dlg: { provider: 'gemini', typed: {}, models: {}, urls: {} },
+    mm: { src: 'struct', kind: 'poin', view: 'map', busy: false, busyKey: '', busyText: '', cache: {}, style: null },
   };
   const stateName = () => S.busy ? 'busy' : S.done ? 'done' : (S.items.length ? 'ready' : 'empty');
-  const provName = p => (S.providers[p] || {}).name || 'penyedia AI';
+  const provName = p => (S.providers[p] || {}).name || T('ai.providerFallback');
   const langLabel = () => (S.set.langs || []).map(l => S.tess.names[l] || l).join(', ');
   const findItem = id => S.items.find(i => i.id === id);
   const isCombined = () => S.set.out_mode === 'combined';
+  const combinedName = () => S.set.combined_name || T('combined.default');
   const currentKey = () => (isCombined() && !S.sel) ? 'ALL' : (S.sel || (S.items[0] && S.items[0].id) || '');
 
   function saveSet(patch) {
@@ -72,7 +101,7 @@
   function inline(s) {
     let t = esc(s);
     t = t.replace(/`([^`]+)`/g, '<code>$1</code>');
-    t = t.replace(/!\[([^\]]*)\]\([^)]*\)/g, (m, a) => `<span class="imgph">${ic('image')}Gambar${a && a !== 'image' ? ': ' + a : ''}</span>`);
+    t = t.replace(/!\[([^\]]*)\]\([^)]*\)/g, (m, a) => `<span class="imgph">${ic('image')}${esc(T('md.image'))}${a && a !== 'image' ? ': ' + a : ''}</span>`);
     t = t.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
     t = t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/__(.+?)__/g, '<strong>$1</strong>');
     t = t.replace(/(^|[\s(])\*(?!\s)(.+?)(?<!\s)\*(?=[\s.,;:)!?]|$)/g, '$1<em>$2</em>');
@@ -93,7 +122,7 @@
         while (i < L.length && !L[i].trim().startsWith(fence)) { code.push(L[i]); i++; }
         i++; h += `<pre>${esc(code.join('\n'))}</pre>`; continue;
       }
-      if ((m = l.match(/^\s*<!--\s*(.+?)\s*-->\s*$/))) { h += `<div class="slide">${esc(m[1].replace(/^Slide number:\s*/i, 'Slide '))}</div>`; i++; continue; }
+      if ((m = l.match(/^\s*<!--\s*(.+?)\s*-->\s*$/))) { h += `<div class="slide">${esc(m[1].replace(/^Slide number:\s*(\S+)/i, (x, n) => T('md.slide', { n })))}</div>`; i++; continue; }
       if (/^\s*(---|\*\*\*|___)\s*$/.test(l)) { h += '<hr>'; i++; continue; }
       if ((m = l.match(/^\s*(#{1,6})\s+(.*)$/))) { const n = Math.min(m[1].length, 4); h += `<h${n}>${inline(m[2])}</h${n}>`; i++; continue; }
       if (l.startsWith('>')) { const q = []; while (i < L.length && L[i].startsWith('>')) { q.push(L[i].replace(/^>\s?/, '')); i++; } h += `<blockquote>${q.filter(x => x.trim()).map(inline).join('<br>')}</blockquote>`; continue; }
@@ -117,7 +146,7 @@
       const p = []; while (i < L.length && L[i].trim() && (p.length === 0 || !block.test(L[i]))) { p.push(L[i]); i++; }
       h += `<p>${p.map(inline).join('<br>')}</p>`;
     }
-    if (cut) h += `<blockquote class="cut">Pratinjau dipotong karena dokumen sangat panjang. Isi lengkap ada di file .md yang tersimpan.</blockquote>`;
+    if (cut) h += `<blockquote class="cut">${T('pv.cut')}</blockquote>`;
     return h;
   }
 
@@ -125,22 +154,19 @@
   const badgeHTML = it => it.kind === 'yt' ? `<span class="badge b-yt" aria-hidden="true">${ic('play', 'fill')}</span>` : `<span class="badge b-${esc(it.kind)}" aria-hidden="true">${esc(it.badge || 'FILE')}</span>`;
   function statusHTML(it) {
     switch (it.status) {
-      case 'wait': return `<span class="st wait">${ic('clock')}Menunggu</span>`;
-      case 'work': return `<span class="st work"><span class="spin"></span>Memproses</span>`;
-      case 'done': return `<span class="st ok">${ic('checkc')}${fmt(it.words)} kata</span>`;
-      case 'warn': return `<span class="st warn">${ic('alert')}Perlu dicek</span>`;
-      case 'error': return `<span class="st err">${ic('xc')}Gagal</span>`;
+      case 'wait': return `<span class="st wait">${ic('clock')}${T('stat.wait')}</span>`;
+      case 'work': return `<span class="st work"><span class="spin"></span>${T('stat.work')}</span>`;
+      case 'done': return `<span class="st ok">${ic('checkc')}${T('stat.words', { n: it.words || 0 })}</span>`;
+      case 'warn': return `<span class="st warn">${ic('alert')}${T('stat.warn')}</span>`;
+      case 'error': return `<span class="st err">${ic('xc')}${T('stat.error')}</span>`;
       default: return '<span></span>';
     }
   }
-  const EXP_TIP = {
-    aud: 'Eksperimental: rekaman dikirim ke layanan pengenal suara Google untuk diubah jadi teks.',
-    yt: 'Eksperimental: bergantung pada layanan YouTube yang bisa berubah sewaktu-waktu.',
-  };
+  const EXP_TIP = { aud: 'exp.aud', yt: 'exp.yt' };
   function metaHTML(it) {
     if (it.status === 'work' && it.sub) return `<span class="mt work">${esc(it.sub)}</span>`;
     if (it.status === 'warn') {
-      const label = S.set.ocr_mode === 'off' ? 'Aktifkan baca scan offline' : 'Baca ulang dengan OCR offline';
+      const label = T(S.set.ocr_mode === 'off' ? 'fix.enable' : 'fix.reread');
       const fix = it.fix === 'ocr' && !S.busy && !S.rereading ? ` <button class="linkbtn" type="button" data-fix="${esc(it.id)}">${label}</button>` : '';
       return `<span class="mt warn">${esc(it.message)}${fix}</span>`;
     }
@@ -148,14 +174,14 @@
     let tag = '';
     const mode = S.set.ocr_mode;
     if (it.kind === 'pdf' && (it.scan || it.mixed)) {
-      const what = it.scan ? 'Hasil scan' : 'Sebagian halaman hasil scan';
-      const t = { off: `${what}, akan dilewati`, offline: `${what}, dibaca offline`, ai: `${what}, dibaca AI` }[mode];
-      tag = `<span class="tag scan${mode === 'off' ? ' off' : ''}">${ic('scan')}${t}</span>`;
+      const what = T(it.scan ? 'tag.scan' : 'tag.mixed');
+      const t = T({ off: 'tag.skip', offline: 'tag.offline', ai: 'tag.ai' }[mode], { what });
+      tag = `<span class="tag scan${mode === 'off' ? ' off' : ''}">${ic('scan')}${esc(t)}</span>`;
     } else if (it.kind === 'img') {
-      const t = { off: 'Gambar, teks tidak dibaca', offline: 'Gambar, dibaca offline', ai: 'Gambar, dibaca AI' }[mode];
-      tag = `<span class="tag scan${mode === 'off' ? ' off' : ''}">${ic('image')}${t}</span>`;
+      const t = T({ off: 'tag.imgOff', offline: 'tag.imgOffline', ai: 'tag.imgAi' }[mode]);
+      tag = `<span class="tag scan${mode === 'off' ? ' off' : ''}">${ic('image')}${esc(t)}</span>`;
     }
-    if (it.exp) tag += `<span class="tag exp" title="${esc(EXP_TIP[it.kind] || 'Eksperimental')}">Eksperimental</span>`;
+    if (it.exp) tag += `<span class="tag exp" title="${esc(T(EXP_TIP[it.kind] || 'exp'))}">${T('exp')}</span>`;
     return `<span class="mt">${esc(it.meta)}${tag}</span>`;
   }
   function renderList() {
@@ -165,51 +191,52 @@
     const act = document.activeElement, actRow = act && act.closest ? act.closest('#files .row') : null;
     const actSel = actRow ? (act.classList.contains('grip') ? '.grip' : act.classList.contains('rm') ? '.rm' : '') : '';
     const actId = actRow ? actRow.dataset.id : '';
+    const gripTip = esc(T('row.grip')), rmTip = esc(T('row.rm'));
     $('#files').innerHTML = S.items.map(it => {
       const sel = st === 'done' && S.sel === it.id ? ' sel' : '';
       return `<li class="row${sel}${click}" data-id="${esc(it.id)}">` +
-        `<button class="grip" type="button" title="Seret untuk mengatur urutan" aria-label="Pindahkan ${esc(it.display)}. Tekan panah atas atau bawah.">${ic('grip')}</button>${badgeHTML(it)}` +
+        `<button class="grip" type="button" title="${gripTip}" aria-label="${esc(T('row.gripAria', { name: it.display }))}">${ic('grip')}</button>${badgeHTML(it)}` +
         `<span class="ftxt"><span class="nm" title="${esc(it.source)}">${esc(it.display)}</span>${metaHTML(it)}</span>` +
-        `${statusHTML(it)}<button class="rm" type="button" data-rm="${esc(it.id)}" aria-label="Hapus ${esc(it.display)} dari daftar" title="Hapus dari daftar">${ic('x')}</button></li>`;
+        `${statusHTML(it)}<button class="rm" type="button" data-rm="${esc(it.id)}" aria-label="${esc(T('row.rmAria', { name: it.display }))}" title="${rmTip}">${ic('x')}</button></li>`;
     }).join('');
     if (actSel) { const el = $(`#files .row[data-id="${CSS.escape(actId)}"] ${actSel}`); if (el) el.focus(); }
   }
   function srcMeta() {
-    if (!S.items.length) return 'Belum ada dokumen';
+    if (!S.items.length) return T('src.none');
     const links = S.items.filter(i => i.is_link).length, files = S.items.length - links;
     const bytes = S.items.reduce((a, i) => a + (i.size || 0), 0);
-    return [files ? `${fmt(files)} file` : '', links ? `${links} link` : '', bytes ? sizeText(bytes) : ''].filter(Boolean).join(' · ');
+    return [files ? T('src.files', { n: files }) : '', links ? T('src.links', { n: links }) : '', bytes ? sizeText(bytes) : ''].filter(Boolean).join(' · ');
   }
 
   /* ---------- panel kanan ---------- */
   function pathLabel() {
-    if (S.set.location === 'same') return 'Folder yang sama dengan file asli';
+    if (S.set.location === 'same') return T('path.same');
     const d = S.set.custom_dir || S.defaultDir;
-    if (!S.set.custom_dir || d === S.defaultDir) return 'Dokumen<em>›</em>Urai App';
+    if (!S.set.custom_dir || d === S.defaultDir) return T('path.default');
     return esc(lastParts(d, 3));
   }
   function renderSetup() {
     const n = S.items.length, mode = S.set.ocr_mode;
     $$('.opt[data-out]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.out === S.set.out_mode)));
     $$('.mode').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.ocr === mode)));
-    $('#outSepSub').textContent = `${n ? fmt(n) : 'Beberapa'} file .md, nama sama dengan aslinya`;
+    $('#outSepSub').textContent = n ? T('out.sepSub', { n }) : T('out.sepSubAny');
     const cn = $('#cname');
-    if (document.activeElement !== cn) cn.value = S.set.combined_name || 'Gabungan';
+    if (document.activeElement !== cn) cn.value = combinedName();
     const hint = $('#ocrHint');
-    if (mode === 'off') hint.innerHTML = `${ic('off', 'warn')}<span class="txt">Gambar dan PDF hasil scan dilewati. Hanya teks yang bisa dipilih di dokumen yang diambil.</span>`;
+    if (mode === 'off') hint.innerHTML = `${ic('off', 'warn')}<span class="txt">${T('hint.off')}</span>`;
     else if (mode === 'offline') {
       hint.innerHTML = S.tess.available
-        ? `${ic('shield')}<span class="txt">Dibaca di komputer ini, tanpa internet. Bahasa: ${esc(langLabel())}. <button class="linkbtn" type="button" data-open="offline">Atur</button></span>`
-        : `${ic('alert', 'warn')}<span class="txt">Mesin baca scan offline tidak ditemukan. Pasang ulang Urai App, atau pilih AI. <button class="linkbtn" type="button" data-open="offline">Atur</button></span>`;
+        ? `${ic('shield')}<span class="txt">${T('hint.offline', { langs: esc(langLabel()) })} <button class="linkbtn" type="button" data-open="offline">${T('hint.configure')}</button></span>`
+        : `${ic('alert', 'warn')}<span class="txt">${T('hint.noTess')} <button class="linkbtn" type="button" data-open="offline">${T('hint.configure')}</button></span>`;
     } else {
       const p = S.set.provider, has = S.keys[p];
       hint.innerHTML = has
-        ? `${ic('spark')}<span class="txt">Lebih akurat dan bisa menjelaskan grafik. Gambar dikirim ke ${esc(provName(p))}. <button class="linkbtn" type="button" data-open="ai">Atur</button></span>`
-        : `${ic('alert', 'warn')}<span class="txt">Mode AI butuh API key ${esc(provName(p))}. <button class="linkbtn" type="button" data-open="ai">Isi API key</button></span>`;
+        ? `${ic('spark')}<span class="txt">${T('hint.ai', { prov: esc(provName(p)) })} <button class="linkbtn" type="button" data-open="ai">${T('hint.configure')}</button></span>`
+        : `${ic('alert', 'warn')}<span class="txt">${T('hint.aiNoKey', { prov: esc(provName(p)) })} <button class="linkbtn" type="button" data-open="ai">${T('hint.enterKey')}</button></span>`;
     }
     const go = $('#go');
     go.disabled = n === 0 || S.busy;
-    $('#goText').textContent = n === 0 ? 'Tambahkan dokumen dulu' : isCombined() ? `Gabungkan ${fmt(n)} dokumen jadi 1 file` : `Ubah ${fmt(n)} dokumen ke Markdown`;
+    $('#goText').textContent = n === 0 ? T('go.empty') : T(isCombined() ? 'go.comb' : 'go.sep', { n });
     $('#sameFolder').checked = S.set.location === 'same';
     $('#pathText').innerHTML = pathLabel();
     $('#pathText').title = S.set.location === 'same' ? '' : (S.set.custom_dir || S.defaultDir);
@@ -220,22 +247,22 @@
     const fin = S.items.filter(i => ['done', 'warn', 'error'].includes(i.status));
     const cur = S.items.find(i => i.status === 'work');
     const p = Math.min(100, Math.round(((fin.length + (cur ? 0.5 : 0)) / total) * 100));
-    $('#pct').innerHTML = `${p}%<small>dokumen ${fmt(Math.min(fin.length + 1, total))} dari ${fmt(total)}</small>`;
+    $('#pct').innerHTML = `${p}%<small>${T('prog.count', { i: Math.min(fin.length + 1, total), n: total })}</small>`;
     $('#pctBar').style.setProperty('--p', p + '%');
     $('#cur').innerHTML = cur
-      ? `${badgeHTML(cur)}<div class="ftxt"><span class="nm">${esc(cur.display)}</span><span class="sub"><span class="spin"></span>${esc(cur.sub || 'Memproses…')}</span></div>`
-      : `<span class="badge b-md">MD</span><div class="ftxt"><span class="nm">${S.cancelling ? 'Membatalkan' : 'Menyimpan hasil'}</span><span class="sub">${S.cancelling ? 'Menunggu halaman yang sedang dibaca' : 'Hampir selesai'}</span></div>`;
-    $('#doneList').innerHTML = fin.length ? `<li style="display:block"><span class="lbl">Sudah selesai</span></li>` + fin.slice().reverse().map(i => {
-      const k = i.status === 'warn' ? ['alert', 'w', 'perlu dicek'] : i.status === 'error' ? ['xc', 'e', 'gagal'] : ['checkc', '', fmt(i.words) + ' kata'];
+      ? `${badgeHTML(cur)}<div class="ftxt"><span class="nm">${esc(cur.display)}</span><span class="sub"><span class="spin"></span>${esc(cur.sub || T('prog.working'))}</span></div>`
+      : `<span class="badge b-md">MD</span><div class="ftxt"><span class="nm">${T(S.cancelling ? 'prog.cancelling' : 'prog.saving')}</span><span class="sub">${T(S.cancelling ? 'prog.cancellingSub' : 'prog.savingSub')}</span></div>`;
+    $('#doneList').innerHTML = fin.length ? `<li style="display:block"><span class="lbl">${T('prog.finished')}</span></li>` + fin.slice().reverse().map(i => {
+      const k = i.status === 'warn' ? ['alert', 'w', T('prog.warn')] : i.status === 'error' ? ['xc', 'e', T('prog.error')] : ['checkc', '', T('stat.words', { n: i.words || 0 })];
       return `<li>${ic(k[0], k[1])}<span>${esc(i.display)}</span><span>${k[2]}</span></li>`;
     }).join('') : '';
     const c = $('#cancel');
     c.disabled = S.cancelling;
-    c.lastChild.textContent = S.cancelling ? 'Membatalkan…' : 'Batalkan';
+    $('#cancelText').textContent = T(S.cancelling ? 'prog.cancelBusy' : 'prog.cancel');
   }
   function folderLabel(dir) {
     if (!dir) return '';
-    if (dir === S.defaultDir) return 'Dokumen › Urai App';
+    if (dir === S.defaultDir) return T('path.defaultPlain');
     return lastParts(dir, 2);
   }
   async function textOf(key) {
@@ -247,20 +274,20 @@
     const d = S.done;
     if (!d) return;
     const ok = S.items.filter(i => i.status === 'done').length, warn = S.items.filter(i => i.status === 'warn').length, err = S.items.filter(i => i.status === 'error').length;
-    $('#resMeta').textContent = [`${fmt(ok)} berhasil`, warn ? `${fmt(warn)} perlu dicek` : '', err ? `${fmt(err)} gagal` : ''].filter(Boolean).join(' · ');
+    $('#resMeta').textContent = [T('res.ok', { n: ok }), warn ? T('res.warn', { n: warn }) : '', err ? T('res.err', { n: err }) : ''].filter(Boolean).join(' · ');
     const total = S.items.reduce((a, i) => a + (i.words || 0), 0);
     if (isCombined()) {
-      const name = d.combined_path ? fileOf(d.combined_path) : `${S.set.combined_name || 'Gabungan'}.md`;
-      $('#outbox').innerHTML = `<span class="badge b-md">MD</span><div style="min-width:0"><div class="t" title="${esc(d.combined_path)}">${esc(name)}</div><div class="s">${fmt(d.combined_words || total)} kata · tersimpan di ${esc(folderLabel(d.out_dir))}</div></div>`;
-      $('#openFileText').textContent = 'Buka file';
+      const name = d.combined_path ? fileOf(d.combined_path) : `${combinedName()}.md`;
+      $('#outbox').innerHTML = `<span class="badge b-md">MD</span><div style="min-width:0"><div class="t" title="${esc(d.combined_path)}">${esc(name)}</div><div class="s">${T('res.combInfo', { n: d.combined_words || total, folder: esc(folderLabel(d.out_dir)) })}</div></div>`;
+      $('#openFileText').textContent = T('res.openFile');
     } else {
       const saved = S.items.filter(i => i.output).length;
-      $('#outbox').innerHTML = `<span class="badge b-md">MD</span><div style="min-width:0"><div class="t">${fmt(saved)} file .md tersimpan</div><div class="s">${fmt(total)} kata total · di ${esc(folderLabel(d.out_dir))}</div></div>`;
-      $('#openFileText').textContent = 'Buka file ini';
+      $('#outbox').innerHTML = `<span class="badge b-md">MD</span><div style="min-width:0"><div class="t">${T('res.sepSaved', { n: saved })}</div><div class="s">${T('res.sepInfo', { n: total, folder: esc(folderLabel(d.out_dir)) })}</div></div>`;
+      $('#openFileText').textContent = T('res.openThis');
     }
     $$('.tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === S.tab)));
     const it = findItem(S.sel);
-    if (isCombined()) $('#pvLabel').innerHTML = it ? `Bagian: ${esc(it.display)} <button class="linkbtn" type="button" id="showAll">Lihat semua</button>` : 'Seluruh file gabungan';
+    if (isCombined()) $('#pvLabel').innerHTML = it ? `${T('pv.part', { name: esc(it.display) })} <button class="linkbtn" type="button" id="showAll">${T('pv.all')}</button>` : T('pv.whole');
     else $('#pvLabel').textContent = it ? it.display : '';
     const isMap = S.tab === 'map';
     $('#pvBody').hidden = isMap;
@@ -268,7 +295,7 @@
     if (isMap) renderMap(); else renderPreview();
     const limit = 60000, big = total > limit, sm = $('#sizeMeter');
     sm.className = 'size' + (big ? ' big' : '');
-    sm.innerHTML = `<span>Ukuran</span><div class="bar"><i style="--p:${Math.max(3, Math.min(100, total / limit * 100))}%"></i></div><span><b>${fmt(total)} kata</b> · ${big ? 'besar, pertimbangkan simpan terpisah' : 'nyaman diunggah ke asisten AI'}</span>`;
+    sm.innerHTML = `<span>${T('size.label')}</span><div class="bar"><i style="--p:${Math.max(3, Math.min(100, total / limit * 100))}%"></i></div><span><b>${T('stat.words', { n: total })}</b> · ${T(big ? 'size.big' : 'size.ok')}</span>`;
     $('#nudge').hidden = !(S.hasQris && (S.set.runs || 0) >= 5 && !S.set.supported);
   }
   async function renderPreview() {
@@ -280,26 +307,26 @@
     if (S.pvShown !== sig) return;
     const body = $('#pvBody');
     if (!md.trim()) {
-      const msg = item && item.message ? item.message : 'Tidak ada teks yang bisa diambil.';
+      const msg = item && item.message ? item.message : T('pv.empty');
       body.innerHTML = `<div class="md"><blockquote>${esc(msg)}</blockquote></div>`;
-    } else body.innerHTML = S.tab === 'view' ? `<div class="md">${renderMd(md)}</div>` : `<pre class="raw">${esc(md.length > PREVIEW_LIMIT ? md.slice(0, PREVIEW_LIMIT) + '\n\n… (pratinjau dipotong)' : md)}</pre>`;
+    } else body.innerHTML = S.tab === 'view' ? `<div class="md">${renderMd(md)}</div>` : `<pre class="raw">${esc(md.length > PREVIEW_LIMIT ? md.slice(0, PREVIEW_LIMIT) + '\n\n' + T('pv.cutRaw') : md)}</pre>`;
     body.scrollTop = 0;
   }
   function ocrStatusLabel() {
     const m = S.set.ocr_mode;
-    if (m === 'off') return 'Baca scan: mati';
-    if (m === 'offline') return S.tess.available ? `Baca scan: offline (${langLabel()})` : 'Baca scan: offline tidak tersedia';
-    return `Baca scan: AI (${provName(S.set.provider)})`;
+    if (m === 'off') return T('sb.ocrOff');
+    if (m === 'offline') return S.tess.available ? T('sb.ocrOffline', { langs: langLabel() }) : T('sb.ocrNoTess');
+    return T('sb.ocrAi', { prov: provName(S.set.provider) });
   }
   function renderStatus() {
     const st = stateName(), n = S.items.length;
     const fin = S.items.filter(i => ['done', 'warn', 'error'].includes(i.status)).length;
     $('#sbLeft').textContent = {
-      empty: 'Siap. Tambahkan dokumen untuk mulai.',
-      ready: `${fmt(n)} dokumen siap diubah`,
-      busy: S.cancelling ? 'Membatalkan…' : `Memproses dokumen ${fmt(Math.min(fin + 1, n))} dari ${fmt(n)}`,
-      done: `Selesai pukul ${S.done && S.done.time || now().time}`,
-    }[st];
+      empty: () => T('sb.empty'),
+      ready: () => T('sb.ready', { n }),
+      busy: () => S.cancelling ? T('sb.cancelling') : T('sb.busy', { i: Math.min(fin + 1, n), n }),
+      done: () => T('sb.done', { time: clock(S.done && S.done.at) }),
+    }[st]();
     $('#sbMid').textContent = ocrStatusLabel();
   }
   let rafId = 0;
@@ -322,14 +349,14 @@
   function upsert(item) { const k = S.items.findIndex(i => i.id === item.id); if (k >= 0) S.items[k] = item; }
   function onAdded(res, label) {
     if (!res) return;
-    if (!res.ok) { toast(res.error || 'Tidak bisa menambahkan.'); return; }
+    if (!res.ok) { toast(res.error || T('t.addFail')); return; }
     if (res.fresh) startFresh();
     S.items = res.items || S.items;
     if (res.cancelled) { render(); return; }
     const parts = [];
-    if (res.added) parts.push(label ? `${label} · ${fmt(res.added)} dokumen ditambahkan` : `${fmt(res.added)} dokumen ditambahkan`);
-    else if (!res.skipped) parts.push(label ? `${label}: tidak ada dokumen baru yang didukung` : 'Dokumen sudah ada di daftar');
-    if (res.skipped) parts.push(`${fmt(res.skipped)} dilewati (format tidak didukung)`);
+    if (res.added) parts.push(label ? T('t.addedFrom', { label, n: res.added }) : T('t.added', { n: res.added }));
+    else if (!res.skipped) parts.push(label ? T('t.noneNew', { label }) : T('t.already'));
+    if (res.skipped) parts.push(T('t.skipped', { n: res.skipped }));
     if (parts.length) toast(parts.join('. '));
     render();
   }
@@ -347,27 +374,27 @@
         if (s.cancelled) {
           S.cancelling = false; S.done = null;
           call('reset_results').then(r => { if (r && r.items) { S.items = r.items; render(); } });
-          toast(`Dibatalkan. ${fmt(s.ok + s.warn)} dokumen yang sudah selesai tetap tersimpan.`, 3800);
+          toast(T('t.cancelled', { n: s.ok + s.warn }), 3800);
           break;
         }
         S.cancelling = false;
-        s.time = now().time;
+        s.at = Date.now();
         S.done = s;
         S.tab = 'view';
         S.sel = isCombined() ? null : ((S.items.find(i => i.status === 'done') || S.items[0] || {}).id || null);
-        if (s.error === s.total) toast('Semua dokumen gagal diubah. Lihat keterangan di daftar.', 4000);
-        else toast(isCombined() ? `Tersimpan: ${fileOf(s.combined_path) || 'file gabungan'}` : `${fmt(S.items.filter(i => i.output).length)} file .md tersimpan`);
+        if (s.error === s.total) toast(T('t.allFailed'), 4000);
+        else toast(isCombined() ? T('t.saved', { name: fileOf(s.combined_path) || T('t.combinedFile') }) : T('res.sepSaved', { n: S.items.filter(i => i.output).length }));
         break;
       }
-      case 'failed': S.busy = false; S.cancelling = false; S.done = null; S.items = e.items || S.items; toast(e.error || 'Proses gagal.', 4000); break;
+      case 'failed': S.busy = false; S.cancelling = false; S.done = null; S.items = e.items || S.items; toast(e.error || T('t.failed'), 4000); break;
       case 'reread_done': {
         const it = findItem(e.id);
         S.rereading = null;
         delete S.texts[e.id]; delete S.texts.ALL; S.pvShown = '';
         Object.keys(S.mm.cache).forEach(k => { if (k.startsWith(e.id + '|') || k.startsWith('ALL|')) delete S.mm.cache[k]; });
         if (typeof e.combined_words === 'number' && S.done) S.done.combined_words = e.combined_words;
-        if (it && e.ok) { if (!isCombined()) S.sel = it.id; toast(`${it.display} dibaca ulang dengan OCR offline`); }
-        else if (it) toast(it.message || 'Dokumen tetap tidak terbaca.', 3600);
+        if (it && e.ok) { if (!isCombined()) S.sel = it.id; toast(T('t.reread', { name: it.display })); }
+        else if (it) toast(it.message || T('t.stillUnread'), 3600);
         break;
       }
       case 'mm': onMapEvent(e); return;
@@ -395,12 +422,12 @@
     render();
   }
   const addFiles = async () => onAdded(await safeCall('pick_files'));
-  const addFolder = async () => { const r = await safeCall('pick_folder'); onAdded(r, r && r.folder ? `Folder "${r.folder}"` : ''); };
+  const addFolder = async () => { const r = await safeCall('pick_folder'); onAdded(r, r && r.folder ? T('t.folder', { name: r.folder }) : ''); };
   $('#addFile').addEventListener('click', addFiles);
   $('#dzPick').addEventListener('click', addFiles);
   $('#addFolder').addEventListener('click', addFolder);
   $('#dzFolder').addEventListener('click', addFolder);
-  $('#tryDemo').addEventListener('click', async () => { const r = await safeCall('add_samples'); onAdded(r, 'File contoh'); });
+  $('#tryDemo').addEventListener('click', async () => { const r = await safeCall('add_samples'); onAdded(r, T('t.samples')); });
 
   $('#linkForm').addEventListener('submit', async e => {
     e.preventDefault();
@@ -410,7 +437,7 @@
     if (!res) return;
     if (!res.ok) { toast(res.error); return; }
     if (res.fresh) startFresh();
-    S.items = res.items; inp.value = ''; render(); toast('Link ditambahkan ke daftar');
+    S.items = res.items; inp.value = ''; render(); toast(T('t.linkAdded'));
   });
 
   $('#files').addEventListener('click', async e => {
@@ -420,7 +447,7 @@
     if (fix) {
       saveSet({ ocr_mode: 'offline' });
       const r = await safeCall('reread', fix.dataset.fix);
-      if (r && r.ok) { S.rereading = fix.dataset.fix; const it = findItem(fix.dataset.fix); if (it) { it.status = 'work'; it.sub = 'OCR offline · membaca ulang'; } }
+      if (r && r.ok) { S.rereading = fix.dataset.fix; const it = findItem(fix.dataset.fix); if (it) { it.status = 'work'; it.sub = T('t.rereadSub'); } }
       else if (r) toast(r.error);
       render(); return;
     }
@@ -440,11 +467,12 @@
     saveSet({ ocr_mode: m }); render();
   }));
   $('#ocrHint').addEventListener('click', e => { const b = e.target.closest('[data-open]'); if (b) openSettings(b.dataset.open); });
-  $('#cname').addEventListener('input', e => debounce('cname', () => saveSet({ combined_name: e.target.value.trim() || 'Gabungan' }), 400));
+  // kosong = pakai nama bawaan sesuai bahasa (Combined / Gabungan)
+  $('#cname').addEventListener('input', e => debounce('cname', () => { const v = e.target.value.trim(); saveSet({ combined_name: v === T('combined.default') ? '' : v }); }, 400));
   $('#sameFolder').addEventListener('change', e => { saveSet({ location: e.target.checked ? 'same' : 'custom' }); render(); });
   $('#changePath').addEventListener('click', async () => {
     const r = await safeCall('choose_output_dir');
-    if (r && r.ok) { S.set = r.settings; render(); toast(`Hasil disimpan ke ${lastParts(r.path, 2)}`); }
+    if (r && r.ok) { S.set = r.settings; render(); toast(T('t.savedTo', { path: lastParts(r.path, 2) })); }
   });
   $('#go').addEventListener('click', start);
   $('#cancel').addEventListener('click', () => { S.cancelling = true; call('cancel'); render(); });
@@ -455,8 +483,8 @@
     const d = S.done; if (!d) return;
     let path = '';
     if (isCombined()) path = d.combined_path;
-    else { const it = findItem(S.sel) || S.items.find(i => i.output); path = it && it.output; if (it && !it.output) { toast('Dokumen ini tidak menghasilkan file karena tidak ada teks yang terbaca.'); return; } }
-    if (!path) { toast('Belum ada file yang tersimpan.'); return; }
+    else { const it = findItem(S.sel) || S.items.find(i => i.output); path = it && it.output; if (it && !it.output) { toast(T('t.noOutput')); return; } }
+    if (!path) { toast(T('t.noFile')); return; }
     const r = await safeCall('open_output', path);
     if (r && !r.ok) toast(r.error);
   });
@@ -470,12 +498,12 @@
   async function copyText(text, okMsg) {
     try { await navigator.clipboard.writeText(text); toast(okMsg); return; } catch (_) { /* coba lewat Python */ }
     if (await safeCall('copy_text', text)) { toast(okMsg); return; }
-    toast('Teks tidak bisa disalin otomatis. Pilih teksnya lalu tekan Ctrl + C.');
+    toast(T('t.copyFail'));
   }
   $('#copyText').addEventListener('click', async () => {
     const md = await textOf(currentKey());
-    if (!md) { toast('Tidak ada teks untuk disalin.'); return; }
-    copyText(md, 'Teks Markdown disalin');
+    if (!md) { toast(T('t.nothingToCopy')); return; }
+    copyText(md, T('t.copied'));
   });
   $('#again').addEventListener('click', async () => { const r = await safeCall('clear'); if (r && r.ok) { S.items = []; startFresh(); render(); } });
   $('#backSetup').addEventListener('click', async () => { const r = await safeCall('reset_results'); if (r && r.ok) { S.items = r.items; startFresh(); render(); } });
@@ -545,8 +573,8 @@
     if (!hasFiles(e)) return;
     e.preventDefault(); dragDepth++;
     const n = e.dataTransfer.items ? e.dataTransfer.items.length : 0;
-    $('#dropTitle').textContent = S.busy ? 'Tunggu proses selesai dulu' : 'Lepaskan untuk menambahkan';
-    $('#dropSub').textContent = S.busy ? 'Dokumen bisa ditambahkan setelah proses selesai.' : (n ? `${fmt(n)} item dari File Explorer` : 'File atau folder dari File Explorer') + (S.done ? '. Daftar sebelumnya diganti.' : '');
+    $('#dropTitle').textContent = T(S.busy ? 'drop.busy' : 'drop.title');
+    $('#dropSub').textContent = S.busy ? T('drop.busySub') : (n ? T('drop.items', { n }) : T('drop.sub')) + (S.done ? T('drop.replace') : '');
     win.dataset.drag = '1';
   });
   // dragover dan drop selalu dicegah: tanpa ini, link atau file yang dilepas membuat jendela membuka halaman itu
@@ -559,12 +587,12 @@
       const url = droppedLink(e);
       if (!url || S.busy) return;
       const res = await safeCall('add_link', url);
-      if (res && res.ok) { if (res.fresh) startFresh(); S.items = res.items; render(); toast('Link ditambahkan ke daftar'); }
+      if (res && res.ok) { if (res.fresh) startFresh(); S.items = res.items; render(); toast(T('t.linkAdded')); }
       else if (res) toast(res.error);
       return;
     }
     dragDepth = 0; win.dataset.drag = '0';
-    if (DEV) toast('Mode pengembangan: tarik-lepas hanya bekerja di aplikasi. Pakai tombol File.');
+    if (DEV) toast(T('t.devDrop'));
   });
 
   /* ---------- dialog ---------- */
@@ -579,68 +607,92 @@
   $$('.scrim').forEach(s => s.addEventListener('mousedown', e => { if (e.target === s) closeDialogs(); }));
   document.addEventListener('click', e => { const b = e.target.closest('[data-link]'); if (b) call('open_link', b.dataset.link); });
 
-  // Pengaturan baca scan
+  // Pengaturan: Umum (bahasa, tema) langsung berlaku; Baca offline dan AI disimpan lewat tombol Simpan
   function setPane(p) {
     S.pane = p;
+    const gen = p === 'general';
     $$('#dTabs button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.pane === p)));
-    $('#pane-offline').hidden = p !== 'offline'; $('#pane-ai').hidden = p !== 'ai';
-    $('#dSave').textContent = p === S.set.ocr_mode ? 'Simpan' : 'Simpan & pakai mode ini';
+    $('#pane-general').hidden = !gen; $('#pane-offline').hidden = p !== 'offline'; $('#pane-ai').hidden = p !== 'ai';
+    $('#d-sub').textContent = T(gen ? 'set.subGeneral' : 'set.subScan');
+    $('#dCancel').hidden = gen; $('#dSave').hidden = gen; $('#dDone').hidden = !gen;
+    $('#dSave').textContent = T(p === S.set.ocr_mode ? 'set.save' : 'set.saveUse');
     setMsg('#testMsg', '');
   }
   function setMsg(sel, text, kind = '') { const el = $(sel); el.textContent = text; el.className = 'fmsg' + (kind ? ' ' + kind : ''); }
+  const themeName = () => (['light', 'dark'].includes(S.set.theme) ? S.set.theme : 'system');
+  function syncGeneral() {
+    $$('#uiLang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.lang)));
+    $$('#uiTheme button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === themeName())));
+  }
   function fillProvider() {
     const p = S.dlg.provider, has = S.keys[p];
     $$('#prov [data-p]').forEach(b => {
       b.setAttribute('aria-pressed', String(b.dataset.p === p));
-      const dot = b.querySelector('.kdot');
-      if (S.keys[b.dataset.p] && !dot) b.insertAdjacentHTML('beforeend', '<span class="kdot" title="API key tersimpan"></span>');
-      if (!S.keys[b.dataset.p] && dot) dot.remove();
+      let dot = b.querySelector('.kdot');
+      if (S.keys[b.dataset.p] && !dot) { dot = document.createElement('span'); dot.className = 'kdot'; b.append(dot); }
+      if (!S.keys[b.dataset.p] && dot) dot.remove(); else if (dot) dot.title = T('ai.keySaved');
     });
     const key = $('#apiKey');
     key.value = S.dlg.typed[p] || '';
-    key.placeholder = has ? 'Tersimpan di komputer ini. Isi lagi untuk mengganti.' : 'Tempel API key di sini';
+    key.placeholder = T(has ? 'ai.keyPhSaved' : 'ai.keyPh');
     const link = (S.providers[p] || {}).has_link;
-    $('#keyHint').innerHTML = (link ? `Belum punya? <button class="linkbtn" type="button" data-link="key_${esc(p)}">Buka halaman pembuatan API key</button>` : 'Isi API key dari server pilihan Anda.') +
-      (has ? ` · <button class="linkbtn" type="button" id="forgetKey">Hapus API key tersimpan</button>` : '');
-    $('#provName').textContent = provName(p);
+    $('#keyHint').innerHTML = (link ? `${T('ai.noKeyYet')} <button class="linkbtn" type="button" data-link="key_${esc(p)}">${T('ai.getKey')}</button>` : T('ai.ownServer')) +
+      (has ? ` · <button class="linkbtn" type="button" id="forgetKey">${T('ai.forget')}</button>` : '');
+    $('#aiSendNote').innerHTML = T('ai.sendNote', { prov: `<b>${esc(provName(p))}</b>` });
     $('#modelName').value = S.dlg.models[p] != null ? S.dlg.models[p] : (S.models[p] || '');
-    $('#modelName').placeholder = (S.providers[p] || {}).model || 'nama model';
+    $('#modelName').placeholder = (S.providers[p] || {}).model || T('ai.modelPh');
     $('#baseUrl').value = S.dlg.urls[p] != null ? S.dlg.urls[p] : (S.baseUrls[p] || '');
     if (p === 'other') $('#advBox').open = true;
     setMsg('#testMsg', '');
   }
-  function openSettings(pane) {
-    S.dlg = { provider: S.set.provider || 'gemini', typed: {}, models: {}, urls: {} };
-    const names = S.tess.names || {}, have = S.tess.langs || [];
+  // isian yang belum disimpan dicatat dulu, supaya tidak hilang saat ganti penyedia atau ganti bahasa
+  const keepTyped = () => { const p = S.dlg.provider; S.dlg.typed[p] = $('#apiKey').value; S.dlg.models[p] = $('#modelName').value; S.dlg.urls[p] = $('#baseUrl').value; };
+  function buildChips(sel) {
+    const names = S.tess.names || {}, have = S.tess.langs || [], tip = esc(T('off.langMissing'));
     $('#langChips').innerHTML = Object.keys(names).map(l => {
       const dis = S.tess.available && !have.includes(l);
-      return `<label class="chk" title="${dis ? 'Bahasa ini belum terpasang' : ''}"><input type="checkbox" value="${esc(l)}"${(S.set.langs || []).includes(l) && !dis ? ' checked' : ''}${dis ? ' disabled' : ''}>${esc(names[l])}</label>`;
+      return `<label class="chk" title="${dis ? tip : ''}"><input type="checkbox" value="${esc(l)}"${sel.includes(l) && !dis ? ' checked' : ''}${dis ? ' disabled' : ''}>${esc(names[l])}</label>`;
     }).join('');
+  }
+  function openSettings(pane) {
+    S.dlg = { provider: S.set.provider || 'gemini', typed: {}, models: {}, urls: {} };
+    buildChips(S.set.langs || []);
     $$('#qSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.set.quality)));
     $('#ocrEmbedded').checked = !!S.set.embedded;
     $('#tessMissing').hidden = !!S.tess.available;
+    syncGeneral();
     fillProvider();
     setPane(pane || (S.set.ocr_mode === 'ai' ? 'ai' : 'offline'));
     openDlg('dlgSettings');
   }
-  $('#btnSettings').addEventListener('click', () => openSettings());
+  $('#btnSettings').addEventListener('click', () => openSettings('general'));
   $('#dTabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setPane(b.dataset.pane); });
+  $('#uiLang').addEventListener('click', async e => {
+    const b = e.target.closest('button'); if (!b || b.dataset.v === S.lang) return;
+    const r = await safeCall('set_language', b.dataset.v);
+    if (!r) return;
+    if (!r.ok) { toast(r.error || T('err.generic')); return; }
+    S.set = r.settings || S.set; S.app = r.app || S.app; S.providers = r.providers || S.providers; S.tess = r.tesseract || S.tess;
+    if (r.items) S.items = r.items;
+    applyLang(S.set.lang || b.dataset.v);
+    render();
+  });
+  $('#uiTheme').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; saveSet({ theme: b.dataset.v }); applyTheme(); syncGeneral(); });
   $('#qSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) $$('#qSeg button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
   $('#prov').addEventListener('click', e => {
     const b = e.target.closest('[data-p]'); if (!b) return;
-    const p = S.dlg.provider;
-    S.dlg.typed[p] = $('#apiKey').value; S.dlg.models[p] = $('#modelName').value; S.dlg.urls[p] = $('#baseUrl').value;
+    keepTyped();
     S.dlg.provider = b.dataset.p; fillProvider();
   });
   $('#keyEye').addEventListener('click', () => { const k = $('#apiKey'); k.type = k.type === 'password' ? 'text' : 'password'; });
   $('#keyHint').addEventListener('click', async e => {
     if (e.target.id !== 'forgetKey') return;
     const r = await safeCall('forget_key', S.dlg.provider);
-    if (r) { S.keys = r.keys; fillProvider(); setMsg('#testMsg', 'API key dihapus dari komputer ini', 'ok'); render(); }
+    if (r) { S.keys = r.keys; fillProvider(); setMsg('#testMsg', T('ai.forgotten'), 'ok'); render(); }
   });
   $('#testConn').addEventListener('click', async () => {
     const p = S.dlg.provider;
-    setMsg('#testMsg', 'Menghubungi…', 'busy');
+    setMsg('#testMsg', T('ai.connecting'), 'busy');
     $('#testConn').disabled = true;
     const r = await safeCall('test_ai', p, $('#apiKey').value.trim(), $('#modelName').value.trim(), $('#baseUrl').value.trim());
     $('#testConn').disabled = false;
@@ -651,22 +703,22 @@
     const quality = ($('#qSeg [aria-pressed="true"]') || {}).dataset?.v || 'fast';
     const patch = { quality, embedded: $('#ocrEmbedded').checked, ocr_mode: S.pane };
     if (langs.length) patch.langs = langs;
-    else if (S.pane === 'offline') { setMsg('#testMsg', 'Pilih minimal satu bahasa.', 'err'); return; }
+    else if (S.pane === 'offline') { setMsg('#testMsg', T('set.needLang'), 'err'); return; }
     // Bagian AI selalu disimpan bila diisi, supaya API key untuk Rangkuman AI bisa disimpan dari tab mana pun.
     const p = S.dlg.provider, key = $('#apiKey').value.trim(), model = $('#modelName').value.trim(), url = $('#baseUrl').value.trim();
     if (S.pane === 'ai') {
-      if (!key && !S.keys[p]) { setMsg('#testMsg', 'Isi API key dulu.', 'err'); $('#apiKey').focus(); return; }
-      if (p === 'other' && !url) { setMsg('#testMsg', 'Isi alamat server di bagian Lanjutan.', 'err'); $('#advBox').open = true; return; }
-      if (p === 'other' && !model) { setMsg('#testMsg', 'Isi nama model di bagian Lanjutan.', 'err'); $('#advBox').open = true; return; }
+      if (!key && !S.keys[p]) { setMsg('#testMsg', T('set.needKey'), 'err'); $('#apiKey').focus(); return; }
+      if (p === 'other' && !url) { setMsg('#testMsg', T('set.needUrl'), 'err'); $('#advBox').open = true; return; }
+      if (p === 'other' && !model) { setMsg('#testMsg', T('set.needModel'), 'err'); $('#advBox').open = true; return; }
     }
     if (S.pane === 'ai' || key || p !== S.set.provider) {
       const r = await safeCall('set_ai', p, key, model, url);
-      if (!r || !r.ok) { setMsg('#testMsg', (r && r.error) || 'Gagal menyimpan.', 'err'); return; }
+      if (!r || !r.ok) { setMsg('#testMsg', (r && r.error) || T('t.saveFail'), 'err'); return; }
       S.keys = r.keys; S.models = r.models; S.baseUrls = r.base_urls; S.set = r.settings;
     }
     saveSet(patch);
     closeDialogs(); render();
-    toast(S.pane === 'ai' ? `Mode AI aktif (${provName(p)})` : 'Mode offline aktif');
+    toast(S.pane === 'ai' ? T('t.aiOn', { prov: provName(p) }) : T('t.offlineOn'));
   });
 
   // Dukung
@@ -685,22 +737,19 @@
   function openSupport() {
     $('#qrImg').hidden = !S.hasQris; $('#qrPlaceholder').hidden = S.hasQris;
     if (S.hasQris && !$('#qrImg').src) $('#qrImg').src = 'img/qris.png';
-    $('#supText').textContent = S.hasQris
-      ? 'Kalau Urai App membantu pekerjaan Anda, scan QRIS ini dari aplikasi bank atau dompet digital apa pun. Nominal bebas.'
-      : 'QRIS resmi sedang disiapkan dan akan dipasang di versi berikutnya. Terima kasih sudah berniat mendukung.';
+    $('#supText').textContent = T(S.hasQris ? 'sup.text' : 'sup.textPending');
     $('#supDone').hidden = !S.hasQris;
     openDlg('dlgSupport');
   }
   $('#btnSupport').addEventListener('click', openSupport);
   $('#nudgeSupport').addEventListener('click', openSupport);
-  $('#supDone').addEventListener('click', () => { closeDialogs(); saveSet({ supported: true }); $('#nudge').hidden = true; toast('Terima kasih! Ajakan dukungan tidak akan muncul lagi.'); });
+  $('#supDone').addEventListener('click', () => { closeDialogs(); saveSet({ supported: true }); $('#nudge').hidden = true; toast(T('t.thanks')); });
 
   // Tentang
   $('#btnAbout').addEventListener('click', () => { setMsg('#updMsg', ''); $('#getUpd').hidden = true; openDlg('dlgAbout'); });
-  $('#copyMail').addEventListener('click', () => copyText(S.app.email, 'Alamat email disalin'));
   $('#openRepo').addEventListener('click', () => call('open_link', 'repo'));
   $('#chkUpd').addEventListener('click', async () => {
-    setMsg('#updMsg', 'Memeriksa…', 'busy');
+    setMsg('#updMsg', T('about.checking'), 'busy');
     const r = await safeCall('check_update');
     if (!r) { setMsg('#updMsg', ''); return; }
     setMsg('#updMsg', r.message, r.ok ? 'ok' : 'err');
@@ -713,11 +762,12 @@
   $('#btnHelp').addEventListener('click', () => openDlg('dlgHelp'));
 
   /* ---------- rangkuman + mind map ---------- */
-  const KIND_LABEL = { umum: 'Umum', notulen: 'Notulen', laporan: 'Laporan' };
-  const KIND_HINT = { umum: 'Poin utama dari isi dokumen.', notulen: 'Masalah, keputusan, dan tindak lanjut.', laporan: 'Temuan, aktor, dan rekomendasi.' };
+  const KINDS = ['poin', 'notulen', 'lengkap'];
+  const KIND_LABEL = { poin: 'kind.poin', notulen: 'kind.notulen', lengkap: 'kind.lengkap' };
+  const KIND_HINT = { poin: 'kind.poinHint', notulen: 'kind.notulenHint', lengkap: 'kind.lengkapHint' };
   const mmKey = currentKey;
   const mmCacheKey = () => `${mmKey()}|${S.mm.src}|${S.mm.src === 'ai' ? S.mm.kind : '-'}`;
-  const mmTitle = () => { const k = mmKey(); if (k === 'ALL') return S.set.combined_name || 'Gabungan'; const it = findItem(k); return it ? baseName(it.display) : 'Mind map'; };
+  const mmTitle = () => { const k = mmKey(); if (k === 'ALL') return combinedName(); const it = findItem(k); return it ? baseName(it.display) : T('mm.title'); };
 
   let MM = null, shownMd = null, TR = null;
   const transformer = () => TR || (TR = new window.markmap.Transformer(window.markmap.builtInPlugins.filter(p => !/^(hljs|katex|npmUrl)$/.test(p.name))));
@@ -731,27 +781,27 @@
 
   function renderMap() {
     const key = mmKey(), it = findItem(key), ai = S.mm.src === 'ai';
-    $('#mmScope').textContent = key === 'ALL' ? `Cakupan: seluruh file gabungan, ${fmt(S.items.length)} dokumen` : `Cakupan: ${it ? it.display : '-'}`;
+    $('#mmScope').textContent = key === 'ALL' ? T('mm.scopeAll', { n: S.items.length }) : T('mm.scope', { name: it ? it.display : '-' });
     $$('#mmSetup .opt').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.src === S.mm.src)));
     $$('#mmKind button').forEach(b => { b.setAttribute('aria-pressed', String(b.dataset.k === S.mm.kind)); b.disabled = !ai; });
     $('#mmKindGrp').classList.toggle('dim', !ai);
-    $('#mmKindHint').textContent = ai ? KIND_HINT[S.mm.kind] : 'Hanya berlaku untuk Rangkuman AI.';
+    $('#mmKindHint').textContent = ai ? T(KIND_HINT[S.mm.kind] || 'kind.poinHint') : T('mm.kindAiOnly');
     const words = key === 'ALL' ? S.items.reduce((a, i) => a + (i.words || 0), 0) : (it ? it.words : 0);
     const note = $('#mmNote'), p = S.set.provider;
-    if (ai && !S.keys[p]) { note.className = 'note warn'; note.innerHTML = `${ic('alert')}<span>Rangkuman AI butuh API key ${esc(provName(p))}. <button class="linkbtn" type="button" id="mmSetKey">Isi API key</button>, atau pakai Struktur dokumen yang gratis.</span>`; }
-    else if (ai) { note.className = 'note warn'; note.innerHTML = `${ic('alert')}<span>Seluruh teks, sekitar <b>${fmt(words)} kata</b>, akan dikirim ke <b>${esc(provName(p))}</b>. Untuk data responden atau dokumen rahasia, pakai Struktur dokumen.</span>`; }
-    else { note.className = 'note ok'; note.innerHTML = `${ic('shield')}<span>Diproses di komputer ini tanpa internet. Hasil terbaik untuk dokumen yang punya judul dan subjudul, seperti Word dan PowerPoint.</span>`; }
-    $('#mmGoText').textContent = ai ? 'Buat rangkuman AI' : 'Buat mind map';
+    if (ai && !S.keys[p]) { note.className = 'note warn'; note.innerHTML = `${ic('alert')}<span>${T('mm.noteNoKey', { prov: esc(provName(p)), btn: `<button class="linkbtn" type="button" id="mmSetKey">${T('hint.enterKey')}</button>` })}</span>`; }
+    else if (ai) { note.className = 'note warn'; note.innerHTML = `${ic('alert')}<span>${T('mm.noteSend', { words: T('stat.words', { n: words || 0 }), prov: esc(provName(p)) })}</span>`; }
+    else { note.className = 'note ok'; note.innerHTML = `${ic('shield')}<span>${T('mm.noteLocal')}</span>`; }
+    $('#mmGoText').textContent = T(ai ? 'mm.goAi' : 'mm.goStruct');
     $('#mmGo').disabled = !words && key !== 'ALL' && !(it && it.status === 'done');
     const ck = mmCacheKey(), md = S.mm.cache[ck], busy = S.mm.busy && S.mm.busyKey === ck;
     $('#mmSetup').hidden = !!md || busy;
     $('#mmBusy').hidden = !busy;
-    $('#mmBusyText').textContent = S.mm.busyText || 'Meringkas…';
+    $('#mmBusyText').textContent = S.mm.busyText || T('mm.busy');
     $('#mmReady').hidden = !md || busy;
     if (md && !busy) requestAnimationFrame(() => showMap(md));
   }
   function showMap(md) {
-    $('#mmSrcTag').innerHTML = S.mm.src === 'ai' ? `${ic('spark')}Rangkuman AI · ${KIND_LABEL[S.mm.kind]}` : `${ic('grip')}Struktur dokumen`;
+    $('#mmSrcTag').innerHTML = S.mm.src === 'ai' ? `${ic('spark')}${T('mm.srcAi', { kind: T(KIND_LABEL[S.mm.kind] || 'kind.poin') })}` : `${ic('grip')}${T('mm.struct')}`;
     $('#mmWarn').hidden = S.mm.src !== 'ai';
     $('#mmPlace').hidden = S.mm.src === 'ai';
     $$('#mmView button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.mm.view)));
@@ -771,7 +821,7 @@
   async function genMap() {
     const key = mmKey(), ck = mmCacheKey();
     if (!key) return;
-    S.mm.busy = true; S.mm.busyKey = ck; S.mm.busyText = S.mm.src === 'ai' ? 'Membaca isi dokumen…' : 'Membaca judul dan daftar…';
+    S.mm.busy = true; S.mm.busyKey = ck; S.mm.busyText = T(S.mm.src === 'ai' ? 'mm.busyAi' : 'mm.busyStruct');
     saveSet({ mm_src: S.mm.src, mm_kind: S.mm.kind });
     renderMap();
     const r = await safeCall('summarize', key, S.mm.src, S.mm.kind);
@@ -788,14 +838,15 @@
       if (S.mm.busyKey === ck) S.mm.busy = false;
     } else if (e.state === 'error') {
       S.mm.busy = false;
-      toast(e.error || 'Rangkuman gagal dibuat.', 4200);
+      toast(e.error || T('mm.fail'), 4200);
     }
     if (S.done && S.tab === 'map') renderMap();
   }
+  const syncFull = () => { $('#mmFull').textContent = T(win.classList.contains('mmfull') ? 'mm.unfull' : 'mm.full'); };
   function exitFull() {
     if (!win.classList.contains('mmfull')) return;
     closeStyle(true);
-    win.classList.remove('mmfull'); $('#mmFull').textContent = 'Layar penuh';
+    win.classList.remove('mmfull'); syncFull();
     requestAnimationFrame(mmFit);
   }
   $$('#mmSetup .opt').forEach(b => b.addEventListener('click', () => { S.mm.src = b.dataset.src; renderMap(); }));
@@ -815,7 +866,7 @@
   $('#mmFull').addEventListener('click', () => {
     if (win.classList.contains('mmfull')) { exitFull(); return; }
     autoFull = false;
-    win.classList.add('mmfull'); $('#mmFull').textContent = 'Kecilkan';
+    win.classList.add('mmfull'); syncFull();
     requestAnimationFrame(mmFit);
   });
   $('#mmSave').addEventListener('click', e => { e.stopPropagation(); $('#mmMenu').hidden = !$('#mmMenu').hidden; });
@@ -828,11 +879,11 @@
     if (f === 'pdf') { openPdf(); return; }
     const payload = { md, title: mmTitle(), style: S.mm.style, ai: S.mm.src === 'ai' };
     if (f === 'png') {
-      toast('Menyiapkan gambar…');
-      try { payload.png = await mmPng(4000); } catch (err) { console.error(err); toast('Gambar mind map tidak bisa dibuat. Coba simpan sebagai HTML atau PDF.'); return; }
+      toast(T('mm.pngBusy'));
+      try { payload.png = await mmPng(4000); } catch (err) { console.error(err); toast(T('mm.pngFail')); return; }
     }
     const r = await safeCall('export_map', f, payload);
-    if (r && r.ok) toast(`Tersimpan: ${r.name}`); else if (r && !r.cancelled) toast(r.error || 'Gagal menyimpan.');
+    if (r && r.ok) toast(T('t.saved', { name: r.name })); else if (r && !r.cancelled) toast(r.error || T('t.saveFail'));
   });
 
   /* ---------- gaya mind map: warna dan lebar per sub ---------- */
@@ -842,7 +893,7 @@
     lembut: ['#6c8ef5', '#4fb3a9', '#f08c5a', '#a98be8', '#e07aa5', '#7fb069', '#e2b45a', '#5ab0d8'],
     mono: ['#64748b'],
   };
-  const LV_LABEL = ['Judul utama', 'Sub 1', 'Sub 2', 'Sub 3', 'Sub 4 dst.'];
+  const LV_LABEL = ['sty.lv0', 'sty.sub1', 'sty.sub2', 'sty.sub3', 'sty.lv4'];
   const levelsFrom = t => { const p = PALETTES[t]; return [0, 1, 2, 3, 4].map(i => p[i % p.length]); };
   const defStyle = () => ({ theme: 'pelangi', mode: 'branch', freeze: 0, levels: levelsFrom('pelangi'), widths: [2.5, 1.75, 1.5, 1.25, 1], maxWidth: 260, spacingH: 70, expand: -1 });
   function loadStyle(saved) {
@@ -877,10 +928,10 @@
     press('#stTheme', st.theme); press('#stMode', st.mode); press('#stFreeze', st.freeze); press('#stExpand', st.expand);
     $('#stFreezeF').classList.toggle('dim', st.mode !== 'branch');
     st.levels.forEach((c, i) => { $('#stC' + i).value = c; });
-    st.widths.forEach((w, i) => { $('#stW' + i).value = w; $('#stWv' + i).textContent = String(w).replace('.', ',') + ' px'; });
-    $('#stMaxW').value = st.maxWidth; $('#stMaxWv').textContent = st.maxWidth + ' px';
-    $('#stGap').value = st.spacingH; $('#stGapv').textContent = st.spacingH + ' px';
-    $('#mmFold').textContent = st.expand === -1 ? 'Lipat' : 'Buka';
+    st.widths.forEach((w, i) => { $('#stW' + i).value = w; $('#stWv' + i).textContent = fmt(w) + ' px'; });
+    $('#stMaxW').value = st.maxWidth; $('#stMaxWv').textContent = fmt(st.maxWidth) + ' px';
+    $('#stGap').value = st.spacingH; $('#stGapv').textContent = fmt(st.spacingH) + ' px';
+    $('#mmFold').textContent = T(st.expand === -1 ? 'mm.fold' : 'mm.unfold');
   }
   let styleT;
   function applyStyle(immediate) {
@@ -896,7 +947,7 @@
   let autoFull = false;  // layar penuh dibuka otomatis oleh panel gaya; ditutup lagi bersama panelnya
   function openStyle() {
     if (!MM) return;
-    if (!win.classList.contains('mmfull')) { win.classList.add('mmfull'); $('#mmFull').textContent = 'Kecilkan'; autoFull = true; }
+    if (!win.classList.contains('mmfull')) { win.classList.add('mmfull'); syncFull(); autoFull = true; }
     $('#mmStyle').hidden = false; $('.mmstage').classList.add('styling');
     syncStyleUI(); requestAnimationFrame(mmFit);
   }
@@ -907,7 +958,14 @@
     autoFull = false;
     if (!quiet) requestAnimationFrame(mmFit);
   }
-  $('#stLevels').innerHTML = LV_LABEL.map((l, i) => `<tr><td>${l}</td><td><input type="color" id="stC${i}" aria-label="Warna ${l}"></td><td><input type="range" id="stW${i}" min="0.5" max="8" step="0.25" aria-label="Tebal garis ${l}"></td><td class="val" id="stWv${i}"></td></tr>`).join('');
+  // tabel warna per sub digambar dari JS; dibuat ulang saat bahasa berganti
+  function buildLevels() {
+    $('#stLevels').innerHTML = LV_LABEL.map((k, i) => {
+      const l = T(k);
+      return `<tr><td>${esc(l)}</td><td><input type="color" id="stC${i}" aria-label="${esc(T('sty.colorOf', { l }))}"></td><td><input type="range" id="stW${i}" min="0.5" max="8" step="0.25" aria-label="${esc(T('sty.widthOf', { l }))}"></td><td class="val" id="stWv${i}"></td></tr>`;
+    }).join('');
+  }
+  buildLevels();
   const segPick = (id, fn) => $(id).addEventListener('click', e => { const b = e.target.closest('button'); if (b) { fn(b.dataset.v); applyStyle(true); } });
   segPick('#stTheme', v => { S.mm.style.theme = v; S.mm.style.levels = levelsFrom(v); });
   segPick('#stMode', v => { S.mm.style.mode = v; });
@@ -956,7 +1014,7 @@
   const svgUrl = text => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(text);
   async function mmPng(maxSide) {
     const text = await mmSnapshotSvg();
-    if (!text) throw new Error('mind map kosong');
+    if (!text) throw new Error('empty mind map');
     const img = new Image();
     img.src = svgUrl(text);
     await img.decode();
@@ -986,10 +1044,11 @@
     $('#pdfLabelRow').hidden = !ai;
     $('#pdfLbl').hidden = !$('#pdfLabel').checked || !ai;
     const pages = 1 + ($('#pdfText').checked ? 1 : 0);
-    $('#pdfInfo').innerHTML = `<b>${P.size === 'F4' ? 'F4 (folio)' : P.size} ${P.orient === 'land' ? 'mendatar' : 'tegak'}</b>${w} × ${h} mm · ${pages}${pages > 1 ? '+' : ''} halaman<br>Nama file: ${esc(mmTitle())} - mind map.pdf`;
+    const orient = T(P.orient === 'land' ? 'pdf.landLow' : 'pdf.portLow');
+    $('#pdfInfo').innerHTML = `<b>${P.size === 'F4' ? 'F4 (folio)' : P.size} ${orient}</b>${w} × ${h} mm · ${T('pdf.pages', { n: pages })}<br>${T('pdf.file', { name: esc(`${mmTitle()} - mind map.pdf`) })}`;
   }
   async function openPdf() {
-    if (!MM || !shownMd) { toast('Buat mind map dulu, lalu simpan sebagai PDF.'); return; }
+    if (!MM || !shownMd) { toast(T('pdf.needMap')); return; }
     const P = PDF();
     $('#pdfTitle').checked = P.title !== false; $('#pdfLabel').checked = P.label !== false; $('#pdfText').checked = !!P.text;
     setMsg('#pdfMsg', ''); $('#pdfSave').disabled = false;
@@ -1005,51 +1064,74 @@
   $('#pdfSave').addEventListener('click', async () => {
     const P = PDF(), md = S.mm.cache[mmCacheKey()];
     if (!md) return;
-    setMsg('#pdfMsg', 'Menyiapkan PDF…', 'busy'); $('#pdfSave').disabled = true;
+    setMsg('#pdfMsg', T('pdf.preparing'), 'busy'); $('#pdfSave').disabled = true;
     let png;
     try { png = await mmPng(P.size === 'A3' ? 6000 : 4500); }
-    catch (err) { console.error(err); setMsg('#pdfMsg', 'Gambar mind map tidak bisa dibuat.', 'err'); $('#pdfSave').disabled = false; return; }
+    catch (err) { console.error(err); setMsg('#pdfMsg', T('pdf.imgFail'), 'err'); $('#pdfSave').disabled = false; return; }
     const r = await safeCall('export_map', 'pdf', { md, title: mmTitle(), style: S.mm.style, ai: S.mm.src === 'ai', png, pdf: P });
     $('#pdfSave').disabled = false;
-    if (r && r.ok) { closeDialogs(); toast(`PDF tersimpan: ${r.name}`); }
+    if (r && r.ok) { closeDialogs(); toast(T('pdf.saved', { name: r.name })); }
     else if (r && r.cancelled) setMsg('#pdfMsg', '');
-    else setMsg('#pdfMsg', (r && r.error) || 'Gagal menyimpan PDF.', 'err');
+    else setMsg('#pdfMsg', (r && r.error) || T('pdf.fail'), 'err');
   });
 
-  /* ---------- tema mengikuti Windows ---------- */
+  /* ---------- tema: Sistem (ikut Windows, langsung berubah), Terang, atau Gelap ---------- */
   const mq = matchMedia('(prefers-color-scheme: dark)');
-  const applyTheme = () => { win.dataset.mode = mq.matches ? 'dark' : 'light'; };
+  const applyTheme = () => { const t = themeName(); win.dataset.mode = t === 'system' ? (mq.matches ? 'dark' : 'light') : t; };
   applyTheme();
   try { mq.addEventListener('change', applyTheme); } catch (_) { mq.addListener(applyTheme); }
   new ResizeObserver(() => { if (MM && S.tab === 'map' && S.done) debounce('fit', mmFit, 200); }).observe($('.mmstage'));
 
+  /* ---------- bahasa tampilan ---------- */
+  // teks yang berasal dari data aplikasi (versi, pengembang, repo, nama penerima QRIS)
+  function fillApp() {
+    const a = S.app || {}, m = a.merchant || '';
+    $('#tagline').textContent = a.tagline || T('tagline');
+    $('#sbRight').textContent = T('sb.right', { name: a.name || 'Urai App', version: String(a.version || '') });
+    $('#aboutVer').textContent = T('about.version', { v: String(a.version || '') }) + (a.commit ? ' · ' + a.commit.slice(0, 7) : '');
+    $('#aboutCredit').textContent = T('about.credit', { year: String(a.year || ''), dev: a.developer || '' });
+    $('#aboutRepo').textContent = a.repo ? a.repo.replace(/^https:\/\//, '') : T('about.repoNone');
+    $('#openRepo').hidden = !a.repo;
+    $('#payeeName').textContent = m;
+    $('#payeeCheck').innerHTML = T('sup.check', { name: `<b>${esc(m)}</b>` });
+    $('#qrImg').alt = T('sup.qrAlt', { name: m });
+  }
+  function applyLang(l) {
+    S.lang = I18N[l] ? l : 'en';
+    document.documentElement.lang = S.lang;
+    applyI18n();
+    buildLevels();
+    if (S.mm.style) syncStyleUI();
+    syncFull();
+    fillApp();
+    S.pvShown = '';
+    if (!$('#dlgSettings').hidden) {
+      keepTyped(); buildChips($$('#langChips input:checked').map(i => i.value));
+      fillProvider(); syncGeneral(); setPane(S.pane);
+    }
+  }
+
   /* ---------- mulai ---------- */
   async function boot() {
+    applyI18n();
     try { await waitBridge(); }
-    catch (_) { $('#boot').textContent = 'Tampilan tidak terhubung ke Urai App. Tutup jendela ini lalu buka Urai App lagi.'; return; }
+    catch (_) { $('#boot').textContent = T('boot.noBridge'); return; }
     let b;
     try { b = await call('init'); }
-    catch (e) { console.error(e); $('#boot').textContent = 'Urai App gagal dimuat. Tutup lalu buka lagi.'; return; }
+    catch (e) { console.error(e); $('#boot').textContent = T('boot.failed'); return; }
     S.app = b.app; S.set = b.settings; S.providers = b.providers; S.models = b.models; S.baseUrls = b.base_urls; S.keys = b.keys;
     S.tess = b.tesseract; S.defaultDir = b.default_dir; S.items = b.items || []; S.hasQris = b.has_qris; S.hasSamples = b.has_samples;
     S.mm.src = S.set.mm_src || (S.keys[S.set.provider] ? 'ai' : 'struct');
-    S.mm.kind = S.set.mm_kind || 'umum';
+    S.mm.kind = KINDS.includes(S.set.mm_kind) ? S.set.mm_kind : 'poin';
     S.mm.style = loadStyle(S.set.mm_style);
     $('#tryWrap').hidden = !S.hasSamples;
-    $('#tagline').textContent = S.app.tagline;
-    $('#sbRight').textContent = `${S.app.name} ${S.app.version} · dibangun di atas MarkItDown dari Microsoft`;
-    $('#aboutVer').textContent = `Versi ${S.app.version}${S.app.commit ? ' · ' + S.app.commit.slice(0, 7) : ''}`;
-    $('#aboutCredit').textContent = `© ${S.app.year} ${S.app.developer}. Urai App adalah perangkat lunak open source berlisensi MIT. Dibangun di atas MarkItDown, proyek open source dari Microsoft (lisensi MIT). Urai App tidak berafiliasi dengan Microsoft.`;
-    $('#aboutMail').textContent = S.app.email;
-    $('#aboutSocial').textContent = S.app.social;
-    if (S.app.repo) { $('#aboutRepo').textContent = S.app.repo.replace(/^https:\/\//, ''); $('#openRepo').hidden = false; }
-    $('#payeeName').textContent = S.app.merchant; $('#payeeName2').textContent = S.app.merchant;
-    syncStyleUI();
+    applyTheme();
+    applyLang(S.set.lang);
     renderNow();
     $('#boot').hidden = true;
     pollLoop();
     call('ready').catch(() => {});
-    if (S.items.length) toast(`${fmt(S.items.length)} dokumen ditambahkan`);
+    if (S.items.length) toast(T('t.added', { n: S.items.length }));
   }
   boot();
 })();

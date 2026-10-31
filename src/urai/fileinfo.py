@@ -5,6 +5,7 @@ import re
 import zipfile
 from pathlib import Path
 
+from .i18n import has, t
 from .textutil import human_size
 
 KIND_BY_EXT = {
@@ -14,11 +15,6 @@ KIND_BY_EXT = {
     ".mp3": "aud", ".wav": "aud", ".m4a": "aud", ".mp4": "aud",
     ".txt": "text", ".md": "text", ".json": "text", ".jsonl": "text", ".xml": "text", ".ipynb": "text",
     ".rss": "text", ".atom": "text",
-}
-LABEL = {
-    "pdf": "PDF", "doc": "Word", "ppt": "PowerPoint", "xls": "Excel", "csv": "CSV", "html": "HTML",
-    "epub": "EPUB", "zip": "ZIP", "msg": "Outlook", "img": "Gambar", "aud": "Audio", "text": "Teks",
-    "yt": "Link YouTube", "web": "Link halaman web",
 }
 BADGE = {
     "pdf": "PDF", "doc": "DOC", "ppt": "PPT", "xls": "XLS", "csv": "CSV", "html": "HTM", "epub": "EPUB",
@@ -30,6 +26,29 @@ SCAN_CHARS = 25  # halaman dengan teks lebih sedikit dari ini dianggap hasil sca
 
 def kind_of(path: str | Path) -> str | None:
     return KIND_BY_EXT.get(Path(path).suffix.lower())
+
+
+def kind_label(kind: str) -> str:
+    """Nama jenis dalam bahasa aktif, mis. "img" -> "Image" atau "Gambar"."""
+    return t(f"kind.{kind}") if has(f"kind.{kind}") else t("kind.file")
+
+
+def meta_text(kind: str, size: int = 0, facts: dict | None = None) -> str:
+    """Keterangan singkat di daftar, mis. "PDF · 3 pages · 1.2 MB", dalam bahasa aktif.
+    facts: pages, slides, sheets, dims (disimpan di Item supaya bisa disusun ulang saat bahasa diganti)."""
+    f = facts or {}
+    parts = [kind_label(kind)]
+    if f.get("pages") is not None:
+        parts.append(t("meta.pages", n=f["pages"]))
+    if f.get("slides"):
+        parts.append(t("meta.slides", n=f["slides"]))
+    if f.get("sheets"):
+        parts.append(t("meta.sheets", n=f["sheets"]))
+    if f.get("dims"):
+        parts.append(f["dims"])
+    if size:
+        parts.append(human_size(size))
+    return " · ".join(parts)
 
 
 def pdf_text_lengths(path: str | Path, limit: int | None = None) -> list[int]:
@@ -73,13 +92,13 @@ def inspect_file(path: str | Path) -> dict:
     """Informasi singkat untuk ditampilkan di daftar. Tidak pernah melempar error."""
     p = Path(path)
     kind = kind_of(p) or "text"
-    info = {"kind": kind, "label": LABEL.get(kind, "File"), "badge": BADGE.get(kind, "FILE"),
-            "size": 0, "pages": None, "scan": False, "scan_pages": 0, "exp": kind == "aud", "meta": ""}
+    info = {"kind": kind, "label": kind_label(kind), "badge": BADGE.get(kind, "FILE"),
+            "size": 0, "pages": None, "scan": False, "scan_pages": 0, "exp": kind == "aud", "meta": "", "facts": {}}
     try:
         info["size"] = p.stat().st_size
     except OSError:
         pass
-    parts = [info["label"]]
+    facts = info["facts"]
     try:
         if kind == "pdf":
             lens = pdf_text_lengths(p, limit=40)
@@ -89,25 +108,19 @@ def inspect_file(path: str | Path) -> dict:
             info["scan_pages"] = scanned
             info["scan"] = bool(lens) and scanned / len(lens) >= 0.5
             info["mixed"] = 0 < scanned and not info["scan"]
-            parts.append(f"{total} halaman")
+            facts["pages"] = total
         elif kind == "ppt":
-            n = _zip_count(p, r"ppt/slides/slide\d+\.xml")
-            if n:
-                parts.append(f"{n} slide")
+            facts["slides"] = _zip_count(p, r"ppt/slides/slide\d+\.xml")
         elif kind == "xls" and p.suffix.lower() == ".xlsx":
-            n = _zip_count(p, r"xl/worksheets/sheet\d+\.xml")
-            if n:
-                parts.append(f"{n} sheet")
+            facts["sheets"] = _zip_count(p, r"xl/worksheets/sheet\d+\.xml")
         elif kind == "img":
             from PIL import Image
 
             with Image.open(p) as im:
-                parts.append(f"{im.width}×{im.height}")
+                facts["dims"] = f"{im.width}×{im.height}"
     except Exception:
         pass
-    if info["size"]:
-        parts.append(human_size(info["size"]))
-    info["meta"] = " · ".join(parts)
+    info["meta"] = meta_text(kind, info["size"], facts)
     return info
 
 

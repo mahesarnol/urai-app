@@ -3,17 +3,21 @@ from pathlib import Path
 
 import pytest
 
+from urai import i18n
 from urai.errors import friendly_error
 from urai.links import host_of, is_youtube, normalize_link
 from urai.textutil import build_combined, demote_headings, human_size, safe_filename, unique_path, word_count
 
 
 def test_word_count_and_sizes():
-    assert word_count("Desa Sukamaju dihuni 1.240 KK") == 6
+    assert word_count("Perpustakaan kota punya 1.240 buku") == 6
     assert word_count("") == 0
     assert human_size(500) == "500 B"
     assert human_size(2048) == "2 KB"
+    assert human_size(3.8 * 1024 * 1024) == "3.8 MB"
+    i18n.set_lang("id")
     assert human_size(3.8 * 1024 * 1024) == "3,8 MB"
+    assert human_size(2048) == "2 KB"
 
 
 @pytest.mark.parametrize("name,expected", [
@@ -43,9 +47,14 @@ def test_demote_headings_skips_code():
 
 def test_build_combined_order_and_empty():
     out = build_combined([("a.pdf", "# A\nisi"), ("b.docx", "")], now=datetime(2026, 10, 31, 9, 5))
-    assert out.startswith("> Gabungan dari 2 dokumen, dibuat 31-10-2026 09.05 dengan Urai App")
+    assert out.startswith("> Combined from 2 documents, created 2026-10-31 09:05 with Urai App")
     assert out.index("# a.pdf") < out.index("# b.docx")
     assert "## A" in out
+    assert "_(no text could be taken)_" in out
+    assert build_combined([("a.pdf", "x")], now=datetime(2026, 1, 2, 3, 4)).startswith("> Combined from 1 document, ")
+    i18n.set_lang("id")
+    out = build_combined([("a.pdf", "# A\nisi"), ("b.docx", "")], now=datetime(2026, 10, 31, 9, 5))
+    assert out.startswith("> Gabungan dari 2 dokumen, dibuat 31-10-2026 09.05 dengan Urai App")
     assert "_(tidak ada teks yang bisa diambil)_" in out
 
 
@@ -55,7 +64,7 @@ def test_build_combined_order_and_empty():
     ("https://m.youtube.com/watch?v=dQw4w9WgXcQ&t=10", "https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
     ("https://www.youtube.com/live/dQw4w9WgXcQ", "https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
     ("www.bps.go.id/id/statistics-table", "https://www.bps.go.id/id/statistics-table"),
-    ("https://kemendesa.go.id", "https://kemendesa.go.id"),
+    ("https://perpusnas.go.id", "https://perpusnas.go.id"),
 ])
 def test_normalize_link(text, url):
     assert normalize_link(text) == url
@@ -83,6 +92,10 @@ def test_friendly_error_unwraps_and_translates():
     inner = PermissionError("locked")
     outer = FileConversionException("wrapped")
     outer.attempts = [Attempt(inner)]
+    assert "permission" in friendly_error(outer)
+    assert "password" in friendly_error(RuntimeError("File is encrypted"))
+    assert friendly_error(RuntimeError("sesuatu yang lain")) == "sesuatu yang lain"
+    assert friendly_error(RuntimeError("{tanda kurung} tetap utuh")) == "{tanda kurung} tetap utuh"
+    i18n.set_lang("id")
     assert "izin" in friendly_error(outer)
     assert "kata sandi" in friendly_error(RuntimeError("File is encrypted"))
-    assert friendly_error(RuntimeError("sesuatu yang lain")) == "sesuatu yang lain"

@@ -86,9 +86,25 @@ def test_chat_and_connection(server):
     assert ai_mod.test_connection(cfg) == "merah"
 
 
+def test_prompts_follow_app_language(server):
+    from urai import i18n
+
+    assert set(ai_mod.PROMPTS["en"]) == set(ai_mod.PROMPTS["id"])
+    cfg = ai_mod.AIConfig("other", "k", "m", server)
+    ai_mod.test_connection(cfg)
+    assert "one word" in FakeAI.requests[-1]["body"]["messages"][0]["content"][0]["text"]
+    assert "in English" in ai_mod.prompt("image") and "original language" in ai_mod.prompt("ocr")
+    assert cfg.name == "Other server (OpenAI-compatible)"
+    i18n.set_lang("id")
+    ai_mod.test_connection(cfg)
+    assert "satu kata" in FakeAI.requests[-1]["body"]["messages"][0]["content"][0]["text"]
+    assert "Bahasa Indonesia" in ai_mod.prompt("image")
+    assert cfg.name == "Server lain (kompatibel OpenAI)" and ai_mod.AIConfig("gemini", "k").name == "Google Gemini"
+
+
 def test_bad_key_is_friendly(server):
     FakeAI.status = 401
     cfg = ai_mod.AIConfig("other", "salah", "m", server)
     with pytest.raises(Exception) as e:
         ai_mod.chat(cfg, "s", "u")
-    assert "API key ditolak" in friendly_error(e.value)
+    assert "API key was rejected" in friendly_error(e.value)

@@ -19,25 +19,27 @@ from pathlib import Path
 
 from . import ai as ai_mod
 from . import export as export_mod
-from . import info
+from . import i18n, info
 from .convert import Item, Options, item_from_link, item_from_path, run_job
 from .errors import Cancelled, friendly_error
 from .fileinfo import SUPPORTED_EXT
+from .i18n import t
 from .links import normalize_link
-from .ocr import LANG_NAMES, engine, reset_engine
+from .ocr import engine, lang_names, reset_engine
 from .paths import default_output_dir, notices_file, samples_dir, web_dir
 from .settings import Settings, get_key, has_key, set_key
-from .summarize import Summarizer, struct_combined, struct_outline
+from .summarize import Summarizer, clean_kind, struct_combined, struct_outline
 from .textutil import base_name, build_combined, safe_filename, unique_path, word_count
 
 log = logging.getLogger("urai.api")
 
 MAX_ITEMS = 500
 FOLDER_SKIP_EXT = {".md"}  # hasil konversi sebelumnya tidak ikut ditambahkan saat memilih folder
-FILE_TYPES = (
-    "Dokumen yang didukung (" + ";".join(f"*{e}" for e in sorted(SUPPORTED_EXT)) + ")",
-    "Semua file (*.*)",
-)
+
+
+def file_types() -> tuple[str, str]:
+    """Saringan jendela pilih file, dalam bahasa aktif."""
+    return t("dlg.supported", ext=";".join(f"*{e}" for e in sorted(SUPPORTED_EXT))), t("dlg.all")
 
 
 class Dialogs:
@@ -49,7 +51,7 @@ class Dialogs:
     def open_files(self, directory: str = "") -> list[str]:
         import webview
 
-        res = self._window.create_file_dialog(webview.FileDialog.OPEN, directory=directory, allow_multiple=True, file_types=FILE_TYPES)
+        res = self._window.create_file_dialog(webview.FileDialog.OPEN, directory=directory, allow_multiple=True, file_types=file_types())
         return list(res or [])
 
     def open_folder(self, directory: str = "") -> str:
@@ -127,6 +129,7 @@ class Api:
         self._produced: set[str] = set()  # file yang dibuat aplikasi ini; hanya ini yang boleh dibuka dari tampilan
         self._ready = threading.Event()
         self._finished = False  # hasil terakhir masih tampil; dokumen baru akan memulai daftar baru
+        i18n.set_lang(self._settings.get("lang"))
 
     # ---------- event ke tampilan ----------
     def _emit(self, kind: str, data: dict | None = None) -> None:
@@ -156,20 +159,27 @@ class Api:
         return {p: has_key(p) for p in ai_mod.PROVIDERS}
 
     def _tesseract(self) -> dict:
-        t = engine()
-        langs = t.languages() if t.available else []
-        return {"available": t.available, "version": t.version() if t.available else "", "langs": langs,
-                "names": {l: LANG_NAMES[l] for l in LANG_NAMES}}
+        tess = engine()
+        langs = tess.languages() if tess.available else []
+        return {"available": tess.available, "version": tess.version() if tess.available else "", "langs": langs,
+                "names": lang_names()}
+
+    def _app(self) -> dict:
+        return {"name": info.APP_NAME, "version": info.VERSION, "commit": info.COMMIT, "tagline": t("app.tagline"),
+                "developer": info.DEVELOPER, "merchant": info.SUPPORT_MERCHANT, "year": info.YEAR,
+                "repo": info.repo_url()}
+
+    @staticmethod
+    def _providers() -> dict:
+        return {k: {"name": ai_mod.provider_name(k), "model": v["model"], "base_url": v["base_url"],
+                    "has_link": bool(v["key_link"])} for k, v in ai_mod.PROVIDERS.items()}
 
     def init(self) -> dict:
         s = self._settings
         return {
-            "app": {"name": info.APP_NAME, "version": info.VERSION, "commit": info.COMMIT, "tagline": info.TAGLINE,
-                    "developer": info.DEVELOPER, "email": info.CONTACT_EMAIL, "social": info.SOCIAL_HANDLE,
-                    "merchant": info.SUPPORT_MERCHANT, "year": info.YEAR, "repo": info.repo_url()},
+            "app": self._app(),
             "settings": s.public(),
-            "providers": {k: {"name": v["name"], "model": v["model"], "base_url": v["base_url"],
-                              "has_link": bool(v["key_link"])} for k, v in ai_mod.PROVIDERS.items()},
+            "providers": self._providers(),
             "models": {p: s.model_for(p) for p in ai_mod.PROVIDERS},
             "base_urls": {p: s.base_url_for(p) for p in ai_mod.PROVIDERS},
             "keys": self._keys(),
@@ -186,7 +196,7 @@ class Api:
         added, skipped = 0, 0
         with self._lock:
             if self._busy():
-                return {"ok": False, "error": "Tunggu proses selesai dulu.", "items": self._items_public()}
+                return {"ok": False, "error": t("api.busy_wait"), "items": self._items_public()}
             fresh = False
             if self._finished and self._any_supported(paths, from_folder):
                 # hasil sebelumnya masih tampil: dokumen baru memulai daftar baru (hanya bila memang ada yang bisa ditambah)
@@ -268,7 +278,7 @@ class Api:
 
     def pick_files(self) -> dict:
         if not self._dialogs:
-            return {"ok": False, "error": "Jendela pilih file tidak tersedia."}
+            return {"ok": False, "error": t("api.no_file_dialog")}
         start = self._items[-1].source if self._items and not self._items[-1].is_link else ""
         paths = self._dialogs.open_files(str(Path(start).parent) if start else "")
         if not paths:
@@ -277,7 +287,7 @@ class Api:
 
     def pick_folder(self) -> dict:
         if not self._dialogs:
-            return {"ok": False, "error": "Jendela pilih folder tidak tersedia."}
+            return {"ok": False, "error": t("api.no_folder_dialog")}
         folder = self._dialogs.open_folder()
         if not folder:
             return {"ok": True, "added": 0, "skipped": 0, "items": self._items_public(), "cancelled": True}
@@ -288,27 +298,27 @@ class Api:
     def add_samples(self) -> dict:
         files = sorted(str(p) for p in samples_dir().iterdir() if p.is_file()) if samples_dir().exists() else []
         res = self._add_paths(files)
-        res["folder"] = "contoh"
+        res["folder"] = t("samples.folder")
         return res
 
     def add_link(self, text: str) -> dict:
         url = normalize_link(text)
         if not url:
-            return {"ok": False, "error": "Tempel link yang lengkap, misalnya https://youtu.be/…"}
+            return {"ok": False, "error": t("api.bad_link")}
         with self._lock:
             if self._busy():
-                return {"ok": False, "error": "Tunggu proses selesai dulu."}
+                return {"ok": False, "error": t("api.busy_wait")}
             if any(i.is_link and i.source == url for i in self._items):
-                return {"ok": False, "error": "Link ini sudah ada di daftar."}
+                return {"ok": False, "error": t("api.dup_link")}
             if len(self._items) >= MAX_ITEMS:
-                return {"ok": False, "error": f"Daftar sudah penuh ({MAX_ITEMS} dokumen)."}
+                return {"ok": False, "error": t("api.list_full", n=MAX_ITEMS)}
             self._items.append(item_from_link(url))
             return {"ok": True, "items": self._items_public()}
 
     def remove_item(self, item_id: str) -> dict:
         with self._lock:
             if self._busy():
-                return {"ok": False, "error": "Tunggu proses selesai dulu.", "items": self._items_public()}
+                return {"ok": False, "error": t("api.busy_wait"), "items": self._items_public()}
             self._items = [i for i in self._items if i.id != item_id]
             return {"ok": True, "items": self._items_public()}
 
@@ -348,11 +358,30 @@ class Api:
 
     # ---------- pengaturan ----------
     def save_settings(self, patch: dict) -> dict:
-        return self._settings.update(patch or {})
+        out = self._settings.update(patch or {})
+        if "lang" in (patch or {}):
+            self._apply_lang()
+        return out
+
+    def _apply_lang(self) -> None:
+        """Pakai bahasa dari pengaturan dan terjemahkan ulang teks buatan aplikasi di daftar."""
+        i18n.set_lang(self._settings.get("lang"))
+        with self._lock:
+            for i in self._items:
+                i.localize()
+
+    def set_language(self, lang: str) -> dict:
+        """Ganti bahasa aplikasi (en | id). Mengembalikan data yang teksnya ikut berganti, bentuknya sama dengan init()."""
+        if lang not in i18n.LANGS:
+            return {"ok": False, "error": t("api.bad_lang")}
+        self._settings.update({"lang": lang})
+        self._apply_lang()
+        return {"ok": True, "settings": self._settings.public(), "items": self._items_public(), "app": self._app(),
+                "providers": self._providers(), "tesseract": self._tesseract()}
 
     def set_ai(self, provider: str, key=None, model: str = "", base_url=None) -> dict:
         if provider not in ai_mod.PROVIDERS:
-            return {"ok": False, "error": "Penyedia AI tidak dikenal."}
+            return {"ok": False, "error": t("api.unknown_provider")}
         s = self._settings
         models = dict(s.get("models"))
         default_model = ai_mod.PROVIDERS[provider]["model"]
@@ -393,20 +422,20 @@ class Api:
         saved_url = self._settings.base_url_for(provider)
         if not (key or "").strip() and base_url not in (None, "") and base_url.strip() != saved_url:
             # API key tersimpan hanya dikirim ke alamat server yang sudah disimpan, tidak ke alamat baru
-            return {"ok": False, "message": "Alamat server berubah. Isi API key lagi untuk mengetesnya."}
+            return {"ok": False, "message": t("api.url_changed")}
         cfg = self._ai_config(provider, key, model, base_url if base_url not in (None, "") else None)
         if not cfg.api_key:
-            return {"ok": False, "message": "Isi API key dulu."}
+            return {"ok": False, "message": t("api.need_key")}
         if provider == "other" and not cfg.base_url:
-            return {"ok": False, "message": "Isi alamat server dulu (bagian Lanjutan)."}
+            return {"ok": False, "message": t("api.need_url")}
         if not cfg.model:
-            return {"ok": False, "message": "Isi nama model dulu (bagian Lanjutan)."}
+            return {"ok": False, "message": t("api.need_model")}
         try:
             answer = ai_mod.test_connection(cfg)
         except Exception as e:  # noqa: BLE001
             log.info("Tes koneksi gagal: %s", e)
             return {"ok": False, "message": friendly_error(e)}
-        return {"ok": True, "message": f"Terhubung ke {cfg.name}", "answer": answer[:60]}
+        return {"ok": True, "message": t("api.connected", name=cfg.name), "answer": answer[:60]}
 
     def choose_output_dir(self) -> dict:
         if not self._dialogs:
@@ -427,18 +456,18 @@ class Api:
         cfg = self._ai_config() if s.get("ocr_mode") == "ai" else None
         return Options(ocr_mode=s.get("ocr_mode"), langs=list(s.get("langs")), quality=s.get("quality"),
                        embedded=bool(s.get("embedded")), ai=cfg, out_mode=s.get("out_mode"),
-                       combined_name=s.get("combined_name") or "Gabungan", location=s.get("location"),
+                       combined_name=s.combined_name(), location=s.get("location"),
                        custom_dir=s.get("custom_dir"))
 
     def start(self) -> dict:
         with self._lock:
             if self._busy():
-                return {"ok": False, "error": "Proses sedang berjalan."}
+                return {"ok": False, "error": t("api.busy")}
             if not self._items:
-                return {"ok": False, "error": "Tambahkan dokumen dulu."}
+                return {"ok": False, "error": t("api.no_items")}
             opts = self._options()
             if opts.ocr_mode == "ai" and not (opts.ai and opts.ai.ready):
-                return {"ok": False, "error": "Mode AI butuh API key. Isi di Pengaturan, atau pilih mode Offline.", "open": "ai"}
+                return {"ok": False, "error": t("api.ai_needs_key"), "open": "ai"}
             self._cancel = threading.Event()
             self._combined_text = ""
             self._combined_path = ""
@@ -478,10 +507,10 @@ class Api:
         """Baca ulang satu dokumen (tombol "Aktifkan baca scan offline" di baris yang perlu dicek)."""
         with self._lock:
             if self._busy():
-                return {"ok": False, "error": "Proses sedang berjalan."}
+                return {"ok": False, "error": t("api.busy")}
             item = next((i for i in self._items if i.id == item_id), None)
             if not item:
-                return {"ok": False, "error": "Dokumen tidak ada di daftar."}
+                return {"ok": False, "error": t("api.not_in_list")}
             opts = self._options()
             if opts.ocr_mode == "off":
                 opts.ocr_mode = "offline"
@@ -511,14 +540,16 @@ class Api:
                 self._emit("item", item.public())
                 return
             except Exception as e:  # noqa: BLE001
-                item.status, item.message = "error", friendly_error(e)
+                item.status = "error"
+                item.say_error(e)
                 self._emit("item", item.public())
                 self._emit("reread_done", {"id": item.id, "ok": False})
                 return
             item.result, item.words, item.sub = text, word_count(text), ""
             item.status = "done" if text else "warn"
             if not text:
-                item.message, item.fix = _empty_message(item, opts)
+                key, item.fix = _empty_message(item, opts)
+                item.say(key)
             if combined:
                 entries = [(i.display_name, i.result) for i in self._items if i.status in ("done", "warn")]
                 self._combined_text = build_combined(entries)
@@ -540,7 +571,8 @@ class Api:
                                        "combined_words": word_count(self._combined_text)})
         except Exception as e:  # noqa: BLE001
             log.exception("Baca ulang gagal")
-            item.status, item.message = "error", friendly_error(e)
+            item.status = "error"
+            item.say_error(e)
             self._emit("item", item.public())
             self._emit("reread_done", {"id": item.id, "ok": False})
 
@@ -556,7 +588,7 @@ class Api:
 
     def open_output(self, path: str) -> dict:
         if not self._allowed(path):
-            return {"ok": False, "error": "File tidak ditemukan. Mungkin sudah dipindah atau dihapus."}
+            return {"ok": False, "error": t("err.not_found")}
         try:
             _open_with_system(path)
             return {"ok": True}
@@ -573,14 +605,15 @@ class Api:
                 p = p.parent
             known_dirs = {os.path.normcase(str(Path(x).parent)) for x in self._produced} | {os.path.normcase(str(default_output_dir()))}
             if os.path.normcase(str(p)) not in known_dirs or not p.is_dir():
-                return {"ok": False, "error": "Folder tidak ditemukan."}
+                return {"ok": False, "error": t("api.folder_missing")}
             _open_with_system(str(p))
             return {"ok": True}
         except OSError as e:
             return {"ok": False, "error": friendly_error(e)}
 
     def open_link(self, key: str) -> bool:
-        url = info.LINKS.get(key) or {"repo": info.repo_url(), "releases": info.releases_url()}.get(key, "")
+        extra = {"repo": info.repo_url(), "issues": info.issues_url(), "releases": info.releases_url()}
+        url = info.LINKS.get(key) or extra.get(key, "")
         if not url:
             return False
         webbrowser.open(url)
@@ -589,7 +622,7 @@ class Api:
     def open_notices(self) -> dict:
         p = notices_file()
         if not p.exists():
-            return {"ok": False, "error": "File THIRD-PARTY-NOTICES.txt tidak ditemukan di folder aplikasi."}
+            return {"ok": False, "error": t("api.notices_missing")}
         _open_with_system(str(p))
         return {"ok": True}
 
@@ -605,7 +638,7 @@ class Api:
 
     def check_update(self) -> dict:
         if not info.GITHUB_REPO:
-            return {"ok": False, "message": "Versi ini dirakit sendiri, jadi tidak bisa cek pembaruan otomatis."}
+            return {"ok": False, "message": t("upd.self_built")}
         url = f"https://api.github.com/repos/{info.GITHUB_REPO}/releases/latest"
         try:
             req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json", "User-Agent": f"UraiApp/{info.VERSION}"})
@@ -613,11 +646,11 @@ class Api:
                 data = json.loads(r.read().decode("utf-8"))
         except Exception as e:  # noqa: BLE001
             log.info("Cek pembaruan gagal: %s", e)
-            return {"ok": False, "message": "Tidak bisa memeriksa pembaruan. Periksa koneksi internet."}
+            return {"ok": False, "message": t("upd.failed")}
         latest = str(data.get("tag_name", "")).lstrip("vV")
         if latest and _version_tuple(latest) > _version_tuple(info.VERSION):
-            return {"ok": True, "newer": True, "version": latest, "message": f"Versi {latest} tersedia."}
-        return {"ok": True, "newer": False, "message": f"Anda memakai versi terbaru ({info.VERSION})"}
+            return {"ok": True, "newer": True, "version": latest, "message": t("upd.newer", v=latest)}
+        return {"ok": True, "newer": False, "message": t("upd.latest", v=info.VERSION)}
 
     def support_done(self) -> dict:
         return self._settings.update({"supported": True})
@@ -626,8 +659,9 @@ class Api:
     def _entries(self) -> list[tuple[str, str]]:
         return [(i.display_name, i.result) for i in self._items if i.status in ("done", "warn")]
 
-    def summarize(self, key: str, src: str, kind: str = "umum") -> dict:
+    def summarize(self, key: str, src: str, kind: str = "poin") -> dict:
         """Mulai membuat rangkuman. Hasilnya dikirim sebagai event 'mm'."""
+        kind = clean_kind(kind)
         cache_key = f"{key}|{src}|{kind if src == 'ai' else '-'}"
         if cache_key in self._summary:
             self._emit("mm", {"state": "done", "key": key, "src": src, "kind": kind, "md": self._summary[cache_key]})
@@ -642,7 +676,7 @@ class Api:
             return {"ok": True}
         cfg = self._ai_config()
         if not cfg.ready:
-            return {"ok": False, "error": "Rangkuman AI butuh API key. Isi di Pengaturan, atau pilih Struktur dokumen.", "open": "ai"}
+            return {"ok": False, "error": t("mm.ai_needs_key"), "open": "ai"}
         if self._mm_thread and self._mm_thread.is_alive():
             self._mm_cancel.set()
         self._mm_cancel = threading.Event()
@@ -653,10 +687,10 @@ class Api:
 
     def _struct(self, key: str) -> str:
         if key == "ALL":
-            return struct_combined(self._settings.get("combined_name") or "Gabungan", self._entries())
+            return struct_combined(self._settings.combined_name(), self._entries())
         item = next((i for i in self._items if i.id == key), None)
         if not item:
-            raise KeyError("Dokumen tidak ada di daftar.")
+            raise LookupError(t("api.not_in_list"))
         return struct_outline(item.display_name, item.result)
 
     def _summarize(self, key, src, kind, cache_key, cfg, cancel) -> None:
@@ -667,11 +701,11 @@ class Api:
         try:
             sm = Summarizer(cfg, kind, progress, cancel)
             if key == "ALL":
-                md = sm.many(self._settings.get("combined_name") or "Gabungan", self._entries())
+                md = sm.many(self._settings.combined_name(), self._entries())
             else:
                 item = next((i for i in self._items if i.id == key), None)
                 if not item:
-                    raise KeyError("Dokumen tidak ada di daftar.")
+                    raise LookupError(t("api.not_in_list"))
                 md = sm.one(item.display_name, item.result)
             if cancel.is_set():
                 return
@@ -688,8 +722,8 @@ class Api:
         self._mm_cancel.set()
         return True
 
-    def forget_summary(self, key: str, src: str, kind: str = "umum") -> bool:
-        self._summary.pop(f"{key}|{src}|{kind if src == 'ai' else '-'}", None)
+    def forget_summary(self, key: str, src: str, kind: str = "poin") -> bool:
+        self._summary.pop(f"{key}|{src}|{clean_kind(kind) if src == 'ai' else '-'}", None)
         return True
 
     def export_map(self, fmt: str, payload: dict) -> dict:
@@ -697,7 +731,7 @@ class Api:
         fmt = fmt if fmt in ("md", "html", "png", "pdf") else "md"
         title = (payload.get("title") or "Mind map").strip()[:150]
         md = payload.get("md") or ""
-        names = {"md": "Markdown (*.md)", "html": "HTML interaktif (*.html)", "png": "Gambar PNG (*.png)", "pdf": "PDF (*.pdf)"}
+        names = {f: t(f"dlg.{f}") for f in ("md", "html", "png", "pdf")}
         filename = f"{safe_filename(title, 'Mind map')} - mind map.{fmt}"
         out_dir = self._last_out_dir()
         if self._dialogs:

@@ -13,9 +13,9 @@
 - **Baca PDF hasil scan dan gambar tanpa internet.** Memakai Tesseract OCR yang ikut terpasang, berjalan di prosesor. Bahasa Indonesia, Inggris, Jawa, Sunda, dan Arab. PDF hasil scan dikenali otomatis.
 - **Mode AI (opsional).** Pakai API key Anda sendiri dari Claude, Gemini, DeepSeek, OpenAI, OpenRouter, atau server lain yang kompatibel. Lebih akurat untuk scan buram dan bisa menjelaskan grafik.
 - **Baca gambar di dalam Word, PowerPoint, dan Excel**, misalnya grafik atau tabel yang ditempel sebagai gambar.
-- **Mind map.** Ubah hasil menjadi mind map interaktif seperti [markmap](https://markmap.js.org), dari struktur dokumen (gratis, offline) atau rangkuman AI (jenis Umum, Notulen, Laporan). Warna dan tebal garis bisa diatur per sub. Simpan sebagai PDF siap cetak (A4, A3, F4), PNG, HTML interaktif, atau Markdown.
+- **Mind map.** Ubah hasil menjadi mind map interaktif seperti [markmap](https://markmap.js.org), dari struktur dokumen (gratis, offline) atau rangkuman AI (jenis Poin utama, Notulen, Ringkas lengkap). Warna dan tebal garis bisa diatur per sub. Simpan sebagai PDF siap cetak (A4, A3, F4), PNG, HTML interaktif, atau Markdown.
 - **Eksperimental:** transkrip video YouTube dan rekaman suara ke teks.
-- **Tema terang dan gelap** mengikuti pengaturan Windows.
+- **Dua bahasa dan tiga tema.** Tampilan berbahasa Inggris (bawaan) atau Indonesia, dengan tema terang, gelap, atau mengikuti Windows. Atur di **Pengaturan › Umum**.
 
 ![Mind map dengan panel gaya](docs/img/mindmap.png)
 
@@ -53,13 +53,11 @@ API key disimpan di Windows Credential Manager, bukan di file biasa.
 
 ## Dukung pengembang
 
-Semua fitur gratis. Bila Urai App bermanfaat, Anda bisa mentraktir kopi lewat QRIS GoPay Merchant atas nama **mahesarnol app** dari tombol **Dukung** di aplikasi. Pastikan nama penerima sesuai sebelum membayar.
+Semua fitur gratis. Bila Urai App bermanfaat, Anda bisa mentraktir kopi lewat QRIS GoPay Merchant atas nama **Elnola Studio, Digital &** dari tombol **Dukung** di aplikasi. Pastikan nama penerima di layar pembayaran sama sebelum membayar.
 
-## Kontak
+## Pertanyaan dan masalah
 
-Email maheswara.as@gmail.com · X [@mahesarnol](https://x.com/mahesarnol) · Instagram [@mahesarnol](https://instagram.com/mahesarnol)
-
-Laporkan masalah lewat tab **Issues** di repo ini. Sertakan file catatan dari `%APPDATA%\UraiApp\logs\urai.log` (berisi nama file dan pesan error, bukan isi dokumen).
+Laporkan masalah atau ajukan pertanyaan lewat tab **[Issues](../../issues)** di repo ini. Bila perlu, sertakan file catatan dari `%APPDATA%\UraiApp\logs\urai.log` (berisi nama file dan pesan error, bukan isi dokumen). Issues bersifat publik, jadi periksa dulu isi file catatan dan hapus nama file atau folder yang tidak ingin dibagikan.
 
 ---
 

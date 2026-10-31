@@ -122,4 +122,4 @@ Both depend on third-party services that may change at any time.
 | "Batas pemakaian atau kuota habis" (Usage limit or quota exceeded) | Your AI account has run out of balance or quota. Top up, wait, or use Offline mode. |
 | The file cannot be saved | A file with the same name is open in another app, or the folder is not writable. Results are saved to `Documents\Urai App` automatically. |
 
-Still having trouble? Email maheswara.as@gmail.com and attach the file `%APPDATA%\UraiApp\logs\urai.log`. That log contains file names and error messages, not the contents of your documents.
+Still having trouble? Open an issue at <https://github.com/mahesarnol/urai-app/issues> and, if it helps, attach the file `%APPDATA%\UraiApp\logs\urai.log`. That log contains file names and error messages, not the contents of your documents. Issues are public, so check the log first and remove any file or folder names you don't want to share.

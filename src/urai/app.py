@@ -17,7 +17,8 @@ import time
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from . import info
+from . import i18n, info
+from .i18n import t
 from .paths import log_dir, web_dir
 
 log = logging.getLogger("urai")
@@ -51,6 +52,27 @@ def windows_dark() -> bool:
             return winreg.QueryValueEx(k, "AppsUseLightTheme")[0] == 0
     except OSError:
         return False
+
+
+def window_dark(theme: str) -> bool:
+    """Warna latar jendela sebelum tampilan dimuat (supaya tidak berkedip putih): ikut pengaturan Tema,
+    atau tema Windows bila Tema = system."""
+    if theme in ("light", "dark"):
+        return theme == "dark"
+    return windows_dark()
+
+
+def load_settings():
+    """Baca pengaturan sedini mungkin supaya kotak pesan dan teks lain sudah memakai bahasa pilihan pengguna."""
+    try:
+        from .settings import Settings
+
+        settings = Settings()
+    except Exception:  # noqa: BLE001 - aplikasi tetap jalan dengan pengaturan bawaan
+        log.warning("Pengaturan tidak bisa dibaca saat mulai", exc_info=True)
+        return None
+    i18n.set_lang(settings.get("lang"))
+    return settings
 
 
 def message_box(text: str, title: str = info.APP_NAME, ask: bool = False) -> bool:
@@ -100,12 +122,6 @@ def webview2_available() -> bool:
     except Exception:
         log.exception("Pemeriksaan WebView2 gagal")
         return True
-
-
-NEED_WEBVIEW2 = ("Urai App butuh Microsoft Edge WebView2 Runtime untuk menampilkan jendelanya, "
-                 "tetapi komponen itu tidak ditemukan di komputer ini.\n\n"
-                 "WebView2 gratis dari Microsoft. Buka halaman unduhannya sekarang? "
-                 "Setelah terpasang, buka Urai App lagi.")
 
 
 def _on_loaded(window, api, home: dict) -> None:
@@ -158,9 +174,10 @@ def _smoke_watch(window, api, out: Path, result: dict) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="urai", description=info.TAGLINE)
-    parser.add_argument("paths", nargs="*", help="file atau folder yang langsung dimasukkan ke daftar")
-    parser.add_argument("--dev", action="store_true", help="jalankan tampilan di browser (pengembangan)")
+    settings = load_settings()
+    parser = argparse.ArgumentParser(prog="urai", description=t("app.tagline"))
+    parser.add_argument("paths", nargs="*", help=t("cli.paths"))
+    parser.add_argument("--dev", action="store_true", help=t("cli.dev"))
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--selftest", metavar="FOLDER")
     parser.add_argument("--smoke", metavar="FILE")
@@ -190,7 +207,7 @@ def main(argv: list[str] | None = None) -> int:
         import webview
     except Exception:
         log.exception("pywebview tidak bisa dimuat")
-        message_box("Urai App tidak bisa dibuka karena komponen tampilan rusak. Pasang ulang Urai App.")
+        message_box(t("app.broken_ui"))
         return 2
 
     from .api import Api, Dialogs
@@ -199,7 +216,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.smoke:
             Path(args.smoke).write_text(repr({"ready": False, "error": "WebView2 tidak ada"}), encoding="utf-8")
             return 3
-        if message_box(NEED_WEBVIEW2, ask=True):
+        if message_box(t("app.need_webview2"), ask=True):
             import webbrowser
 
             webbrowser.open(info.LINKS["webview2"])
@@ -213,10 +230,10 @@ def main(argv: list[str] | None = None) -> int:
         except Exception:
             pass
 
-    api = Api()
+    api = Api(settings)
     if args.paths:
         api._add_paths([os.path.abspath(p) for p in args.paths])
-    dark = windows_dark()
+    dark = window_dark(api._settings.get("theme"))
     window = webview.create_window(
         info.APP_NAME, url=str(web_dir() / "index.html"), js_api=api,
         width=1180, height=800, min_size=(980, 660),
@@ -236,7 +253,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.smoke:
             Path(args.smoke).write_text(repr({"ready": False, "error": str(e)}), encoding="utf-8")
             return 3
-        if message_box(NEED_WEBVIEW2, ask=True):
+        if message_box(t("app.need_webview2"), ask=True):
             import webbrowser
 
             webbrowser.open(info.LINKS["webview2"])

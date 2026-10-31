@@ -5,6 +5,8 @@ import re
 from datetime import datetime
 from pathlib import Path
 
+from .i18n import fmt_date, fmt_num, t
+
 _WORD = re.compile(r"\w+", re.UNICODE)
 
 
@@ -13,17 +15,18 @@ def word_count(text: str) -> int:
 
 
 def human_size(n: float) -> str:
+    """Ukuran file sesuai bahasa aktif: 3.8 MB (en) atau 3,8 MB (id)."""
     if n < 1024:
         return f"{int(n)} B"
     for unit in ("KB", "MB", "GB"):
         n /= 1024
         if n < 1024 or unit == "GB":
-            return (f"{n:.0f} {unit}" if unit == "KB" else f"{n:.1f} {unit}").replace(".", ",")
+            return f"{fmt_num(n, 0 if unit == 'KB' else 1)} {unit}"
     return f"{n} B"
 
 
 def fmt_int(n: int) -> str:
-    return f"{n:,}".replace(",", ".")
+    return fmt_num(n)
 
 
 def safe_filename(name: str, fallback: str = "hasil") -> str:
@@ -68,12 +71,12 @@ def demote_headings(md: str, levels: int = 1) -> str:
 
 def build_combined(entries: list[tuple[str, str]], now: datetime | None = None) -> str:
     """entries: daftar (nama sumber, isi markdown) sesuai urutan daftar."""
-    stamp = (now or datetime.now()).strftime("%d-%m-%Y %H.%M")
-    head = [f"> Gabungan dari {len(entries)} dokumen, dibuat {stamp} dengan Urai App", ">"]
+    stamp = fmt_date(now or datetime.now(), with_time=True)
+    head = [t("md.combined_head", n=len(entries), date=stamp, app="Urai App"), ">"]
     head += [f"> {i}. {name}" for i, (name, _) in enumerate(entries, 1)]
     parts = ["\n".join(head)]
     for name, text in entries:
-        body = demote_headings(text.strip()) if text.strip() else "_(tidak ada teks yang bisa diambil)_"
+        body = demote_headings(text.strip()) if text.strip() else t("md.combined_empty")
         parts.append(f"# {name}\n\n{body}")
     return "\n\n---\n\n".join(parts) + "\n"
 

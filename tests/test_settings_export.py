@@ -19,10 +19,31 @@ def test_settings_defaults_and_cleaning(tmp_path):
     assert s.get("pdf") == {"size": "A4", "orient": "port", "title": True, "label": True, "text": False}
     assert s.model_for("claude") == "model-x"
     assert s.model_for("gemini") == "gemini-3.8-flash"
-    s.update({"out_mode": "combined", "combined_name": "Kajian", "nonsense": True})
+    s.update({"out_mode": "combined", "combined_name": "Materi Rapat", "nonsense": True})
     again = Settings(path)
-    assert again.get("out_mode") == "combined" and again.get("combined_name") == "Kajian"
+    assert again.get("out_mode") == "combined" and again.get("combined_name") == "Materi Rapat"
     assert "nonsense" not in json.loads(path.read_text())
+
+
+def test_settings_language_theme_and_kinds(tmp_path):
+    from urai import i18n
+
+    path = tmp_path / "settings.json"
+    s = Settings(path)
+    assert s.get("lang") == "en" and s.get("theme") == "system" and s.get("mm_kind") == "poin"
+    assert s.get("combined_name") == "" and s.combined_name() == "Combined"
+    i18n.set_lang("id")
+    assert s.combined_name() == "Gabungan"
+    s.update({"lang": "id", "theme": "dark", "mm_kind": "lengkap"})
+    assert Settings(path).public()["lang"] == "id" and Settings(path).get("theme") == "dark"
+    s.update({"lang": "fr", "theme": "neon", "mm_kind": "puisi"})
+    assert (s.get("lang"), s.get("theme"), s.get("mm_kind")) == ("en", "system", "poin")
+    # nilai dari versi lama: jenis rangkuman lama dipetakan, nama file gabungan yang tersimpan dipertahankan
+    path.write_text(json.dumps({"mm_kind": "laporan", "combined_name": "Gabungan"}))
+    old = Settings(path)
+    assert old.get("mm_kind") == "lengkap" and old.combined_name() == "Gabungan"
+    path.write_text(json.dumps({"mm_kind": "umum"}))
+    assert Settings(path).get("mm_kind") == "poin"
 
 
 def test_settings_survive_broken_file(tmp_path):
@@ -91,7 +112,22 @@ def test_html_export_is_offline_and_escaped(tmp_path):
     assert "<script>alert(1)" not in page
     assert "Judul &lt;x&gt;" in page
     assert '"theme": "urai"' in page and '"levels": ["#1f77b4"' in page  # gaya yang tidak valid diganti bawaan
-    assert "Rangkuman AI" in page
+    assert "AI summary, may contain mistakes" in page and '<html lang="en">' in page and "Fit to screen" in page
+
+
+def test_exports_follow_language(tmp_path):
+    from urai import i18n
+
+    i18n.set_lang("id")
+    out = tmp_path / "peta.html"
+    export.save_html(out, "# Judul\n- poin", "Judul", None, True)
+    page = out.read_text(encoding="utf-8")
+    assert "Rangkuman AI, bisa keliru" in page and '<html lang="id">' in page and "Pas di layar" in page
+    pdf = tmp_path / "peta.pdf"
+    export.save_pdf(pdf, _png(), "# Judul\n## Cabang", "Judul", show_label=True, text_page=True)
+    doc = pdfium.PdfDocument(str(pdf))
+    assert "Rangkuman AI" in doc[1].get_textpage().get_text_range()
+    doc.close()
 
 
 def test_png_data_url_validation(tmp_path):

@@ -55,7 +55,8 @@ def test_full_flow(app_url, scheme):
 
         page.click("#tryDemo")
         page.wait_for_function("document.querySelectorAll('#files .row').length === 6")
-        assert "Ubah 6 dokumen" in page.text_content("#goText")
+        assert page.evaluate("document.documentElement.lang") == "en"  # bahasa bawaan
+        assert "Convert 6 documents" in page.text_content("#goText")
         assert page.locator("#files .tag.scan").count() == 2  # PDF hasil scan dan gambar diberi label
         shot(page, "2-ready")
 
@@ -92,7 +93,7 @@ def test_full_flow(app_url, scheme):
         page.wait_for_selector("#dlgPdf:not([hidden])")
         page.click("#pdfSize button[data-v=A3]")
         page.click("#pdfOrient button[data-v=port]")
-        assert "A3 tegak" in page.text_content("#pdfInfo")
+        assert "A3 portrait" in page.text_content("#pdfInfo")
         page.click("#pdfSave")
         page.wait_for_selector("#dlgPdf", state="hidden", timeout=30000)
         exported = sorted(x.suffix for x in (tmp / "exports").iterdir())
@@ -106,6 +107,26 @@ def test_full_flow(app_url, scheme):
             page.wait_for_selector(dlg + ":not([hidden])")
             page.keyboard.press("Escape")
             page.wait_for_selector(dlg, state="hidden")
+
+        # Pengaturan > Umum: tema dan bahasa langsung berlaku tanpa tombol Simpan
+        page.click("#btnSettings")
+        page.wait_for_selector("#pane-general:not([hidden])")
+        assert page.is_hidden("#dSave") and page.is_visible("#dDone")
+        other = "dark" if scheme == "light" else "light"
+        page.click(f"#uiTheme button[data-v={other}]")
+        assert page.evaluate("document.getElementById('win').dataset.mode") == other
+        page.click("#uiTheme button[data-v=system]")
+        assert page.evaluate("document.getElementById('win').dataset.mode") == scheme
+        page.click("#uiLang button[data-v=id]")
+        page.wait_for_function("document.documentElement.lang === 'id'")
+        page.wait_for_function("document.getElementById('resMeta').textContent.includes('berhasil')")
+        assert page.text_content("#btnHelp").strip() == "Panduan"
+        assert page.locator("#btnHelp svg").count() == 1  # ikon tidak hilang saat teks diganti
+        shot(page, "4b-settings-id")
+        page.click("#uiLang button[data-v=en]")
+        page.wait_for_function("document.documentElement.lang === 'en'")
+        page.keyboard.press("Escape")
+        page.wait_for_selector("#dlgSettings", state="hidden")
 
         # gabung jadi satu dengan urutan baru
         page.click("#backSetup")
@@ -122,7 +143,7 @@ def test_full_flow(app_url, scheme):
         page.keyboard.press("ArrowUp")
         page.wait_for_function("document.querySelector('#files .row:nth-child(1) .nm').textContent === 'Foto Pengumuman Perpustakaan.jpg'")
         page.wait_for_timeout(300)
-        assert "Gabungkan 6 dokumen" in page.text_content("#goText")
+        assert "Combine 6 documents" in page.text_content("#goText")
         page.click("#go")
         page.wait_for_function(f"{state} === 'done'", timeout=180000)
         assert "Bahan Klub Baca.md" in page.text_content("#outbox")

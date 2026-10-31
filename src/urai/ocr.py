@@ -13,10 +13,20 @@ from pathlib import Path
 from PIL import Image, ImageOps
 
 from .errors import OcrUnavailable
+from .i18n import t
 from .paths import bundled_tesseract_dir, is_frozen
 
-LANG_NAMES = {"ind": "Indonesia", "eng": "Inggris", "jav": "Jawa", "sun": "Sunda", "ara": "Arab"}
+LANG_CODES = ("ind", "eng", "jav", "sun", "ara")  # bahasa Tesseract yang dikenal aplikasi
 DPI = {"fast": 200, "accurate": 300}
+
+
+def lang_name(code: str) -> str:
+    """Nama bahasa Tesseract dalam bahasa aplikasi, mis. "ind" -> "Indonesian"."""
+    return t(f"lang.{code}") if code in LANG_CODES else code
+
+
+def lang_names() -> dict[str, str]:
+    return {c: lang_name(c) for c in LANG_CODES}
 _NO_WINDOW = 0x08000000 if os.name == "nt" else 0  # CREATE_NO_WINDOW: jangan munculkan jendela hitam
 
 
@@ -90,7 +100,7 @@ class Tesseract:
                     try:
                         r = self._run(["--list-langs"], timeout=20)
                         lines = (r.stdout or r.stderr).decode("utf-8", "replace").splitlines()
-                        langs = [l.strip() for l in lines if l.strip() in LANG_NAMES]
+                        langs = [l.strip() for l in lines if l.strip() in LANG_CODES]
                     except Exception:
                         langs = []
                 self._langs = langs
@@ -121,7 +131,7 @@ class Tesseract:
                 r = self._run(["stdin", *opts], data=buf.getvalue())
         if r.returncode != 0:
             msg = r.stderr.decode("utf-8", "replace").strip().splitlines()
-            raise RuntimeError("Tesseract gagal: " + (msg[-1] if msg else f"kode {r.returncode}"))
+            raise RuntimeError(t("ocr.failed", msg=msg[-1] if msg else t("ocr.exit_code", n=str(r.returncode))))
         return clean_ocr_text(r.stdout.decode("utf-8", "replace"))
 
 
@@ -180,7 +190,7 @@ def worker_count() -> int:
 
 
 if __name__ == "__main__":  # python -m urai.ocr gambar.png
-    t = engine()
-    print(t.cmd, t.tessdata, t.version(), t.languages())
+    tess = engine()
+    print(tess.cmd, tess.tessdata, tess.version(), tess.languages())
     if len(sys.argv) > 1:
-        print(t.read(Image.open(sys.argv[1]), t.pick_langs(["ind", "eng"])))
+        print(tess.read(Image.open(sys.argv[1]), tess.pick_langs(["ind", "eng"])))

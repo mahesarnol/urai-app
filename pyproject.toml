@@ -8,7 +8,7 @@ version = "3.0.0"
 description = "Urai dokumen jadi teks Markdown yang rapi: PDF, Word, PowerPoint, Excel, gambar, audio, dan link YouTube."
 readme = "README.md"
 license = { text = "MIT" }
-authors = [{ name = "mahesarnol", email = "maheswara.as@gmail.com" }]
+authors = [{ name = "mahesarnol" }]
 requires-python = ">=3.11,<3.14"
 dependencies = [
     # Mesin konversi. Extras dipilih satu per satu supaya SDK Azure tidak ikut terpasang.

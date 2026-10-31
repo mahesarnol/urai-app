@@ -1,4 +1,4 @@
-"""Identitas aplikasi: nama, versi, kontak, dan tautan resmi."""
+"""Identitas aplikasi: nama, versi, dan tautan resmi."""
 from __future__ import annotations
 
 from . import __version__
@@ -10,24 +10,29 @@ except Exception:  # menjalankan dari kode sumber
 
 APP_NAME = "Urai App"
 APP_ID = "UraiApp"
-TAGLINE = "Urai dokumen jadi teks Markdown yang rapi"
 VERSION = _BUILD_VERSION or __version__
 COMMIT = _COMMIT
 YEAR = 2026
 
 DEVELOPER = "mahesarnol"
-CONTACT_EMAIL = "maheswara.as@gmail.com"
-SOCIAL_HANDLE = "@mahesarnol"
 
 # Dukungan lewat QRIS GoPay Merchant. Gambar QRIS diletakkan di web/img/qris.png.
-SUPPORT_MERCHANT = "mahesarnol app"
+# Nama ini wajib sama dengan nama merchant di QRIS (yang tampil di aplikasi pembayaran).
+SUPPORT_MERCHANT = "Elnola Studio, Digital &"
 
 # Repo GitHub, mis. "mahesarnol/urai-app". Diisi otomatis saat dirakit di GitHub Actions.
+# Cek pembaruan hanya berjalan bila nilai ini ada (rakitan resmi).
 GITHUB_REPO = _REPO
+# Repo resmi untuk ditampilkan dan dibuka bila rakitan tidak membawa informasi repo.
+DEFAULT_REPO = "mahesarnol/urai-app"
 
 
 def repo_url() -> str:
-    return f"https://github.com/{GITHUB_REPO}" if GITHUB_REPO else ""
+    return f"https://github.com/{GITHUB_REPO or DEFAULT_REPO}"
+
+
+def issues_url() -> str:
+    return f"{repo_url()}/issues"
 
 
 def releases_url() -> str:

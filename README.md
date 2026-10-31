@@ -55,13 +55,11 @@ API keys are stored in Windows Credential Manager, not in a plain file.
 
 ## Support the developer
 
-All features are free. If Urai App helps you, you can buy the developer a coffee via QRIS (Indonesia's QR payment standard) to the GoPay Merchant account **mahesarnol app**, from the **Dukung** (Support) button in the app. Make sure the recipient name matches before paying.
+All features are free. If Urai App helps you, you can buy the developer a coffee via QRIS (Indonesia's QR payment standard) to the GoPay Merchant account **Elnola Studio, Digital &**, from the **Support** button in the app. Make sure the recipient name on your payment screen matches before paying.
 
-## Contact
+## Questions and problems
 
-Email maheswara.as@gmail.com · X [@mahesarnol](https://x.com/mahesarnol) · Instagram [@mahesarnol](https://instagram.com/mahesarnol)
-
-Report problems in this repo's **Issues** tab. Please attach the log file from `%APPDATA%\UraiApp\logs\urai.log` (it contains file names and error messages, not document contents).
+Report a problem or ask a question in this repo's **[Issues](../../issues)** tab. If it helps, attach the log file from `%APPDATA%\UraiApp\logs\urai.log` (it contains file names and error messages, not document contents). Issues are public, so check the log first and remove any file or folder names you don't want to share.
 
 ---
 

@@ -10,6 +10,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 
+from .i18n import fmt_date, get_lang, t
 from .info import APP_NAME, VERSION
 from .paths import web_dir
 
@@ -17,7 +18,10 @@ from .paths import web_dir
 PAPER_MM = {"A4": (210, 297), "A3": (297, 420), "F4": (215, 330)}
 MM = 72 / 25.4  # titik PDF per milimeter
 
-AI_LABEL = "Rangkuman AI, bisa keliru. Periksa kembali dengan dokumen asli."
+
+def ai_label() -> str:
+    """Peringatan pada mind map hasil AI, dalam bahasa aktif."""
+    return t("export.ai_label")
 
 
 def page_size(size: str, orient: str) -> tuple[float, float]:
@@ -30,10 +34,10 @@ def page_size(size: str, orient: str) -> tuple[float, float]:
 def decode_data_url(data_url: str) -> bytes:
     m = re.match(r"^data:image/png;base64,(.+)$", data_url or "", re.S)
     if not m:
-        raise ValueError("gambar mind map tidak valid")
+        raise ValueError(t("export.bad_image"))
     data = base64.b64decode(m.group(1))
     if not data.startswith(b"\x89PNG"):
-        raise ValueError("gambar mind map tidak valid")
+        raise ValueError(t("export.bad_image"))
     return data
 
 
@@ -67,7 +71,7 @@ def _json_for_script(obj) -> str:
 
 
 HTML_TEMPLATE = """<!doctype html>
-<html lang="id">
+<html lang="{lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -87,9 +91,9 @@ HTML_TEMPLATE = """<!doctype html>
 </style>
 </head>
 <body>
-<header><h1>{title}</h1><span>{date}</span>{label}<button type="button" id="fit">Pas di layar</button></header>
+<header><h1>{title}</h1><span>{date}</span>{label}<button type="button" id="fit">{fit}</button></header>
 <svg class="markmap" id="mm"></svg>
-<footer>Dibuat dengan {app}</footer>
+<footer>{made_with}</footer>
 <script>
 /* d3 (ISC)
 {d3_license}
@@ -171,11 +175,12 @@ def clean_style(style: dict | None) -> dict:
     return out
 
 
-def save_html(path: Path, md: str, title: str, style: dict | None, ai_label: bool) -> Path:
+def save_html(path: Path, md: str, title: str, style: dict | None, show_label: bool) -> Path:
     page = HTML_TEMPLATE.format(
-        app=APP_NAME, version=VERSION, title=html.escape(title),
-        date=datetime.now().strftime("%d-%m-%Y"),
-        label=f'<span class="chip">{html.escape(AI_LABEL)}</span>' if ai_label else "",
+        app=APP_NAME, version=VERSION, title=html.escape(title), lang=get_lang(),
+        date=fmt_date(datetime.now()), fit=html.escape(t("export.fit")),
+        made_with=html.escape(t("export.made_with", app=APP_NAME)),
+        label=f'<span class="chip">{html.escape(ai_label())}</span>' if show_label else "",
         d3=_vendor("d3.min.js"), view=_vendor("markmap-view.js"), lib=_vendor("markmap-lib.js"),
         d3_license=_vendor_license("d3"), view_license=_vendor_license("markmap-view"),
         lib_license=_vendor_license("markmap-lib"),
@@ -243,10 +248,10 @@ def _outline_rows(md: str) -> list[tuple[int, str, bool]]:
 
 def _inline(text: str) -> str:
     """Teks aman untuk Paragraph reportlab, dengan **tebal** dan *miring* sederhana."""
-    t = html.escape(text, quote=False)
-    t = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", t)
-    t = re.sub(r"(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])", r"<i>\1</i>", t)
-    return t
+    out = html.escape(text, quote=False)
+    out = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", out)
+    out = re.sub(r"(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])", r"<i>\1</i>", out)
+    return out
 
 
 def save_pdf(path: Path, png: bytes, md: str, title: str, *, size: str = "A4", orient: str = "land",
@@ -261,7 +266,8 @@ def save_pdf(path: Path, png: bytes, md: str, title: str, *, size: str = "A4", o
     margin = 12 * MM
     img = ImageReader(io.BytesIO(png))
     iw, ih = img.getSize()
-    stamp = datetime.now().strftime("%d-%m-%Y")
+    stamp = fmt_date(datetime.now())
+    label = ai_label()
     ink, muted, warn_bg, warn_ink = colors.HexColor("#111827"), colors.HexColor("#64748B"), colors.HexColor("#FCF0DF"), colors.HexColor("#A65A05")
 
     class MapPage(Flowable):
@@ -291,11 +297,11 @@ def save_pdf(path: Path, png: bytes, md: str, title: str, *, size: str = "A4", o
             bottom = 0
             if show_label:
                 c.setFont(regular, 8.5)
-                tw = c.stringWidth(AI_LABEL, regular, 8.5)
+                tw = c.stringWidth(label, regular, 8.5)
                 c.setFillColor(warn_bg)
                 c.roundRect(0, 0, tw + 14, 15, 4, stroke=0, fill=1)
                 c.setFillColor(warn_ink)
-                c.drawString(7, 4.4, AI_LABEL)
+                c.drawString(7, 4.4, label)
                 bottom = 22
             avail_w, avail_h = self.aw, top - bottom
             k = min(avail_w / iw, avail_h / ih)
@@ -311,7 +317,7 @@ def save_pdf(path: Path, png: bytes, md: str, title: str, *, size: str = "A4", o
         h = ParagraphStyle("h", fontName=bold, fontSize=15, leading=19, textColor=ink, spaceAfter=8)
         story.append(Paragraph(_inline(title), h))
         if show_label:
-            story.append(Paragraph(_inline(AI_LABEL), ParagraphStyle("l", fontName=regular, fontSize=9, leading=12, textColor=warn_ink, spaceAfter=8)))
+            story.append(Paragraph(_inline(label), ParagraphStyle("l", fontName=regular, fontSize=9, leading=12, textColor=warn_ink, spaceAfter=8)))
         for level, text, is_head in _outline_rows(md):
             if level == 1 and is_head:
                 continue  # judul utama sudah ditulis di atas
