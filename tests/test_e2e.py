@@ -65,8 +65,8 @@ def test_full_flow(app_url, scheme):
         shot(page, "3-done")
 
         # pratinjau berpindah sesuai baris yang dipilih
-        page.click("#files .row:has-text('Surat Undangan')")
-        page.wait_for_function("document.getElementById('pvBody').textContent.includes('Musyawarah')")
+        page.click("#files .row:has-text('Sejarah Kopi')")
+        page.wait_for_function("document.getElementById('pvBody').textContent.includes('Kaldi')")
         page.click(".tabs button[data-tab=raw]")
         page.wait_for_function("document.querySelector('#pvBody pre.raw') !== null")
 
@@ -111,23 +111,23 @@ def test_full_flow(app_url, scheme):
         page.click("#backSetup")
         page.wait_for_function(f"{state} === 'ready'")
         page.click(".opt[data-out=combined]")
-        page.fill("#cname", "Bahan Kajian Desa")
+        page.fill("#cname", "Bahan Klub Baca")
         page.wait_for_timeout(600)
         page.focus("#files .row:nth-child(2) .grip")
         page.keyboard.press("ArrowUp")
-        page.wait_for_function("document.querySelector('#files .row:nth-child(1) .nm').textContent === 'Laporan Pemetaan Sosial 2026.pdf'")
+        page.wait_for_function("document.querySelector('#files .row:nth-child(1) .nm').textContent === 'Foto Pengumuman Perpustakaan.jpg'")
         assert page.evaluate("document.activeElement.closest('.row').dataset.id") == page.get_attribute("#files .row:nth-child(1)", "data-id")
         page.keyboard.press("ArrowDown")  # fokus tetap di pegangan yang sama, jadi bisa dipindah lagi
-        page.wait_for_function("document.querySelector('#files .row:nth-child(2) .nm').textContent === 'Laporan Pemetaan Sosial 2026.pdf'")
+        page.wait_for_function("document.querySelector('#files .row:nth-child(2) .nm').textContent === 'Foto Pengumuman Perpustakaan.jpg'")
         page.keyboard.press("ArrowUp")
-        page.wait_for_function("document.querySelector('#files .row:nth-child(1) .nm').textContent === 'Laporan Pemetaan Sosial 2026.pdf'")
+        page.wait_for_function("document.querySelector('#files .row:nth-child(1) .nm').textContent === 'Foto Pengumuman Perpustakaan.jpg'")
         page.wait_for_timeout(300)
         assert "Gabungkan 6 dokumen" in page.text_content("#goText")
         page.click("#go")
         page.wait_for_function(f"{state} === 'done'", timeout=180000)
-        assert "Bahan Kajian Desa.md" in page.text_content("#outbox")
-        combined = (tmp / "out" / "Bahan Kajian Desa.md").read_text(encoding="utf-8")
-        assert combined.index("# Laporan Pemetaan") < combined.index("# Foto Papan")
+        assert "Bahan Klub Baca.md" in page.text_content("#outbox")
+        combined = (tmp / "out" / "Bahan Klub Baca.md").read_text(encoding="utf-8")
+        assert combined.index("# Foto Pengumuman") < combined.index("# Bab 1")
         shot(page, "5-combined")
 
         # mode Mati: scan perlu dicek, lalu dibaca ulang dari barisnya

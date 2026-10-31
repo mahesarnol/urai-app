@@ -19,12 +19,12 @@ from .paths import samples_dir
 
 # Potongan teks yang wajib muncul di hasil tiap file contoh.
 EXPECT = {
-    "Laporan Pemetaan Sosial 2026.pdf": ["Pemetaan Aktor", "1.240"],
-    "Surat Undangan Musdes.pdf": ["Musyawarah", "Sukamaju"],          # PDF hasil scan, dibaca OCR offline
-    "Notulen FGD Kelompok Tani.docx": ["Masalah utama", "pompa air"],
-    "Rekap Survei Rumah Tangga.xlsx": ["Dusun 2", "Posyandu"],
-    "Paparan Program CSR.pptx": ["Rencana Program CSR 2027", "Target Program 2027"],  # teks di gambar dalam slide
-    "Foto Papan Informasi.jpg": ["PAPAN INFORMASI", "Posyandu"],
+    "Bab 1 Mengelola Waktu.pdf": ["Matriks Prioritas", "tiga tugas terpenting"],
+    "Scan Buku Sejarah Kopi.pdf": ["Kaldi", "Jawa"],                   # PDF hasil scan, dibaca OCR offline
+    "Notulen Rapat Tim.docx": ["Keputusan", "halaman pendaftaran"],
+    "Statistik Perpustakaan.xlsx": ["Buku anak", "September"],
+    "Presentasi Ringkasan Buku.pptx": ["Ringkasan Buku", "Kebiasaan yang Dicoba"],  # teks di gambar dalam slide
+    "Foto Pengumuman Perpustakaan.jpg": ["PERPUSTAKAAN", "peminjaman"],
 }
 
 

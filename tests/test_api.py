@@ -81,19 +81,19 @@ def test_run_summarize_export_and_fresh_list(api, tmp_path):
     s = done["summary"]
     assert s["ok"] == 1 and not s["cancelled"] and s["runs"] == 1
     item = done["items"][0]
-    assert "Masalah utama" in api.result_text(item["id"])
+    assert "Pembahasan" in api.result_text(item["id"])
     out = item["output"]
     assert Path(out).exists()
     # rangkuman struktur dokumen (offline), lalu dari cache
     assert api.summarize(item["id"], "struct")["ok"]
     mm, _ = wait_for(api, "mm")
-    assert mm["state"] == "done" and mm["md"].startswith("# Notulen FGD Kelompok Tani")
+    assert mm["state"] == "done" and mm["md"].startswith("# Notulen Rapat Tim")
     assert api.summarize(item["id"], "struct")["cached"]
     # rangkuman AI tanpa API key ditolak dengan sopan
     assert api.summarize(item["id"], "ai", "notulen")["open"] == "ai"
     # simpan mind map tanpa jendela dialog: langsung ke folder hasil
-    exp = api.export_map("md", {"md": mm["md"], "title": "Notulen: FGD"})
-    assert exp["ok"] and Path(exp["path"]).name == "Notulen FGD - mind map.md"
+    exp = api.export_map("md", {"md": mm["md"], "title": "Notulen: Rapat"})
+    assert exp["ok"] and Path(exp["path"]).name == "Notulen Rapat - mind map.md"
     # hanya file buatan aplikasi yang boleh dibuka
     assert api.open_output("/etc/passwd")["ok"] is False
     assert api._allowed(out) and api._allowed(exp["path"])
@@ -105,7 +105,7 @@ def test_run_summarize_export_and_fresh_list(api, tmp_path):
 @pytest.mark.tesseract
 def test_reread_after_ocr_off(api, samples, has_tesseract):
     api.save_settings({"ocr_mode": "off"})
-    api.add_paths([str(samples["Surat Undangan Musdes.pdf"])])
+    api.add_paths([str(samples["Scan Buku Sejarah Kopi.pdf"])])
     api.start()
     done, _ = wait_for(api, "finished")
     item = done["items"][0]
@@ -113,7 +113,7 @@ def test_reread_after_ocr_off(api, samples, has_tesseract):
     assert api.reread(item["id"])["ok"]
     rr, _ = wait_for(api, "reread_done")
     assert rr["ok"]
-    assert "Musyawarah" in api.result_text(item["id"])
+    assert "Kaldi" in api.result_text(item["id"])
     fixed = api.init()["items"][0]
     assert fixed["status"] == "done" and Path(fixed["output"]).exists()
 
