@@ -1,0 +1,9 @@
+# Komponen yang dibutuhkan Urai App saat berjalan.
+# Sama dengan [project.dependencies] di pyproject.toml.
+markitdown[pdf,docx,pptx,xlsx,xls,outlook,audio-transcription,youtube-transcription]>=0.1.9,<0.2
+pywebview>=6.2,<7
+pypdfium2>=4.30,<6
+pillow>=10.4
+openai>=1.40,<4
+keyring>=25,<26
+reportlab>=4.2,<6

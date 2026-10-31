@@ -1,0 +1,7 @@
+# Untuk pengembangan, pengujian, dan merakit installer Windows.
+-r requirements.txt
+pytest>=8
+packaging>=24
+pyinstaller>=6.10,<7
+pyinstaller-hooks-contrib>=2024.8
+python-docx>=1.1

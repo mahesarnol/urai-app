@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "urai-app"
+version = "3.0.0"
+description = "Urai dokumen jadi teks Markdown yang rapi: PDF, Word, PowerPoint, Excel, gambar, audio, dan link YouTube."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "mahesarnol", email = "maheswara.as@gmail.com" }]
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    # Mesin konversi. Extras dipilih satu per satu supaya SDK Azure tidak ikut terpasang.
+    "markitdown[pdf,docx,pptx,xlsx,xls,outlook,audio-transcription,youtube-transcription]>=0.1.9,<0.2",
+    "pywebview>=6.2,<7",
+    "pypdfium2>=4.30,<6",
+    "pillow>=10.4",
+    "openai>=1.40,<4",
+    "keyring>=25,<26",
+    "reportlab>=4.2,<6",
+]
+
+[project.scripts]
+urai = "urai.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+urai = ["web/**/*", "samples/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"
+markers = [
+    "tesseract: butuh program Tesseract terpasang",
+    "e2e: uji tampilan di browser (butuh Playwright); jalankan dengan URAI_E2E=1",
+]

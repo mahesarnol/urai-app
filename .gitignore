@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# Hasil rakitan (dibuat GitHub Actions)
+build/
+dist/
+THIRD-PARTY-NOTICES.txt
+src/urai/_build_info.py
+
+# Lain-lain
+.DS_Store
+Thumbs.db
+*.log

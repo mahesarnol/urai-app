@@ -1,0 +1,133 @@
+# Uji kode, lalu rakit installer Windows. Saat tag v* didorong (mis. v3.0.0), installer dan versi
+# portable otomatis diunggah ke halaman Releases.
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Uji (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Pasang Tesseract
+        run: sudo apt-get update && sudo apt-get install -y tesseract-ocr tesseract-ocr-ind
+      - name: Pasang dependensi
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+      - name: Uji
+        run: python -m pytest
+
+  windows:
+    name: Rakit installer Windows
+    needs: test
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Pasang dependensi
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Informasi rakitan
+        id: info
+        run: python packaging/write_build_info.py
+
+      - name: Siapkan Tesseract OCR
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./packaging/fetch_tesseract.ps1 -Out build/tesseract
+
+      - name: Susun THIRD-PARTY-NOTICES.txt
+        run: python packaging/gen_notices.py
+
+      - name: PyInstaller
+        run: pyinstaller packaging/urai.spec --noconfirm --clean
+
+      - name: Uji mandiri (tanpa jendela)
+        shell: pwsh
+        timeout-minutes: 10
+        run: |
+          $p = Start-Process -FilePath "dist\Urai App\Urai App.exe" -ArgumentList "--selftest", "build\selftest" -Wait -PassThru
+          Get-Content build\selftest\selftest.json
+          if ($p.ExitCode -ne 0) { throw "Uji mandiri gagal (kode $($p.ExitCode))" }
+
+      - name: Uji asap (jendela terbuka dan tampilan termuat)
+        shell: pwsh
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          $p = Start-Process -FilePath "dist\Urai App\Urai App.exe" -ArgumentList "--smoke", "build\smoke.txt" -Wait -PassThru
+          if (Test-Path build\smoke.txt) { Get-Content build\smoke.txt }
+          Get-Content "$env:APPDATA\UraiApp\logs\urai.log" -Tail 40 -ErrorAction SilentlyContinue
+          if ($p.ExitCode -ne 0) { throw "Uji asap gagal (kode $($p.ExitCode))" }
+
+      - name: Inno Setup
+        shell: pwsh
+        run: |
+          # Versi terbaru dibutuhkan (x64compatible baru ada sejak Inno Setup 6.3)
+          choco upgrade innosetup -y --no-progress
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          & $iscc "/DAppVersion=${{ steps.info.outputs.version }}" packaging\installer.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC gagal" }
+
+      - name: Versi portable (zip)
+        shell: pwsh
+        run: |
+          Copy-Item LICENSE "dist\Urai App\LICENSE.txt"
+          Copy-Item THIRD-PARTY-NOTICES.txt "dist\Urai App\"
+          Compress-Archive -Path "dist\Urai App" -DestinationPath "dist\UraiApp-${{ steps.info.outputs.version }}-portable.zip"
+          Get-ChildItem dist -File | ForEach-Object {
+            $h = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$h  $($_.Name)" | Out-File -Append -Encoding ascii dist\SHA256SUMS.txt
+          }
+          Get-Content dist\SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: UraiApp-${{ steps.info.outputs.version }}-windows
+          path: |
+            dist/UraiApp-*-Setup.exe
+            dist/UraiApp-*-portable.zip
+            dist/SHA256SUMS.txt
+          retention-days: 30
+
+      - name: Unggah ke Releases
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $files = @(Get-ChildItem dist\UraiApp-*-Setup.exe, dist\UraiApp-*-portable.zip, dist\SHA256SUMS.txt | ForEach-Object { $_.FullName })
+          gh release view $tag 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag @files --title "Urai App $($tag.TrimStart('v'))" --notes-file docs/RILIS.md
+          } else {
+            gh release upload $tag @files --clobber
+          }

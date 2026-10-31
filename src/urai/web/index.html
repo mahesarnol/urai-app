@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Semua file dimuat dari aplikasi sendiri. 'unsafe-eval' dibutuhkan jembatan pywebview. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Urai App</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1.2 1.2M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1.2-1.2"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.6.3-1 .8-1 1.5v.5"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-grip" viewBox="0 0 24 24"><g fill="currentColor" stroke="none"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></g></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-checkc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.3l2.8 2.8L16.2 9.6"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/></symbol>
+  <symbol id="i-xc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+  <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M19 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M7 12h10"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M18.5 16l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/></symbol>
+  <symbol id="i-off" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.8h.01"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M20 16l-5-5-8 8"/></symbol>
+</svg>
+
+<div class="win" id="win" data-state="empty" data-mode="light" data-out="separate" data-ocr="offline" data-drag="0">
+  <div class="app">
+    <header class="apphead">
+      <div class="brand">
+        <div><span class="wordmark"><b>Urai</b><span>App</span></span><small id="tagline">Urai dokumen jadi teks Markdown yang rapi</small></div>
+      </div>
+      <div class="headact">
+        <button class="btn quiet" type="button" id="btnHelp"><svg class="ic"><use href="#i-help"/></svg>Panduan</button>
+        <button class="btn quiet" type="button" id="btnSettings"><svg class="ic"><use href="#i-sliders"/></svg>Pengaturan</button>
+        <button class="btn quiet" type="button" id="btnAbout"><svg class="ic"><use href="#i-info"/></svg>Tentang</button>
+        <button class="btn heart" type="button" id="btnSupport"><svg class="ic"><use href="#i-heart"/></svg>Dukung</button>
+      </div>
+    </header>
+
+    <div class="cols">
+      <!-- 1. dokumen -->
+      <section class="panel" aria-labelledby="h-src">
+        <div class="phead">
+          <span class="step">1</span><h3 id="h-src">Dokumen</h3>
+          <span class="pmeta" id="srcMeta"></span>
+          <div class="pact">
+            <button class="btn sm" type="button" id="addFile"><svg class="ic"><use href="#i-plus"/></svg>File</button>
+            <button class="btn sm" type="button" id="addFolder"><svg class="ic"><use href="#i-folder"/></svg>Folder</button>
+          </div>
+        </div>
+
+        <div class="dz">
+          <div class="illu" aria-hidden="true">
+            <div class="stack"><span class="badge b-pdf">PDF</span><span class="badge b-doc">DOC</span><span class="badge b-xls">XLS</span></div>
+            <svg class="ic"><use href="#i-arrow"/></svg>
+            <span class="badge b-md">MD</span>
+          </div>
+          <h4>Tarik dokumen ke sini</h4>
+          <p>Bisa banyak file sekaligus, atau satu folder penuh. Link YouTube dan halaman web ditempel di kolom bawah.</p>
+          <div class="acts">
+            <button class="btn primary" type="button" id="dzPick"><svg class="ic"><use href="#i-plus"/></svg>Pilih file</button>
+            <button class="btn" type="button" id="dzFolder"><svg class="ic"><use href="#i-folder"/></svg>Pilih folder</button>
+          </div>
+          <span class="formats">PDF · Word · PowerPoint · Excel · gambar · audio · EPUB · ZIP · HTML · CSV</span>
+          <span class="try" id="tryWrap">Baru pertama kali? <button class="linkbtn" type="button" id="tryDemo">Coba dengan file contoh</button></span>
+        </div>
+
+        <ul class="files" id="files" aria-label="Daftar dokumen"></ul>
+        <p class="orderhint"><svg class="ic"><use href="#i-grip"/></svg>Urutan di daftar ini menjadi urutan isi file gabungan. Seret pegangan untuk memindahkan.</p>
+
+        <form class="linkrow" id="linkForm" autocomplete="off">
+          <label class="inp" for="linkInput"><svg class="ic"><use href="#i-link"/></svg><input id="linkInput" type="text" spellcheck="false" placeholder="Tempel link YouTube atau halaman web, lalu tekan Enter"></label>
+          <button class="btn" type="submit">Tambah link</button>
+        </form>
+      </section>
+
+      <!-- 2 + 3. atur / proses / hasil -->
+      <section class="panel" aria-labelledby="h-side">
+        <div class="setup">
+          <div class="phead"><span class="step">2</span><h3 id="h-side">Atur hasil</h3></div>
+          <div class="scroll">
+            <div class="grp" role="group" aria-labelledby="g-out">
+              <span class="glabel" id="g-out">Bentuk hasil</span>
+              <div class="opts">
+                <button class="opt" type="button" data-out="separate" aria-pressed="true">
+                  <span class="top"><span class="mini" aria-hidden="true"><i></i><i></i><i></i><svg class="ic"><use href="#i-arrow"/></svg><i class="m"></i><i class="m"></i><i class="m"></i></span><span class="rad"></span></span>
+                  <span class="ot">Satu file per dokumen</span>
+                  <span class="os" id="outSepSub">File .md dengan nama sama seperti aslinya</span>
+                </button>
+                <button class="opt" type="button" data-out="combined" aria-pressed="false">
+                  <span class="top"><span class="mini" aria-hidden="true"><i></i><i></i><i></i><svg class="ic"><use href="#i-arrow"/></svg><i class="m big"></i></span><span class="rad"></span></span>
+                  <span class="ot">Gabung jadi satu</span>
+                  <span class="os">1 file .md, isi urut sesuai daftar</span>
+                </button>
+              </div>
+              <div class="cname">
+                <label for="cname">Nama file gabungan</label>
+                <div class="inp"><input id="cname" type="text" spellcheck="false" maxlength="120"><span class="suffix">.md</span></div>
+              </div>
+            </div>
+
+            <div class="grp" role="group" aria-labelledby="g-ocr">
+              <span class="glabel" id="g-ocr">Baca gambar &amp; hasil scan</span>
+              <div class="modes">
+                <button class="mode" type="button" data-ocr="off" aria-pressed="false"><b><span class="rad"></span>Mati</b><span>Hanya teks digital</span></button>
+                <button class="mode" type="button" data-ocr="offline" aria-pressed="true"><b><span class="rad"></span>Offline</b><span>Gratis, tanpa internet</span></button>
+                <button class="mode" type="button" data-ocr="ai" aria-pressed="false"><b><span class="rad"></span>AI</b><span>Paling akurat, berbayar</span></button>
+              </div>
+              <div class="hint" id="ocrHint"></div>
+            </div>
+
+            <div class="grp" role="group" aria-labelledby="g-save">
+              <span class="glabel" id="g-save">Simpan ke</span>
+              <div class="pathrow">
+                <svg class="ic"><use href="#i-folder"/></svg>
+                <span class="path" id="pathText"></span>
+                <button class="btn sm quiet" type="button" id="changePath">Ubah</button>
+              </div>
+              <label class="check" for="sameFolder"><input type="checkbox" id="sameFolder"> Simpan di folder yang sama dengan file asli</label>
+            </div>
+          </div>
+          <div class="cta">
+            <button class="btn primary big" type="button" id="go"><svg class="ic"><use href="#i-arrow"/></svg><span id="goText">Tambahkan dokumen dulu</span><span class="kbd">Ctrl + Enter</span></button>
+          </div>
+        </div>
+
+        <div class="progress" aria-live="polite">
+          <div class="phead" style="padding-inline:0"><span class="step">3</span><h3>Sedang mengubah</h3></div>
+          <div class="pct" id="pct">0%</div>
+          <div class="bar"><i id="pctBar"></i></div>
+          <div class="cur" id="cur"></div>
+          <ul class="donelist" id="doneList"></ul>
+          <div class="cancelrow">
+            <button class="btn" type="button" id="cancel"><svg class="ic"><use href="#i-x"/></svg>Batalkan</button>
+            <p>Dokumen yang sudah selesai tetap tersimpan.</p>
+          </div>
+        </div>
+
+        <div class="result">
+          <div class="phead" style="padding-inline:0"><span class="step ok"><svg class="ic"><use href="#i-check"/></svg></span><h3>Selesai</h3><span class="pmeta" id="resMeta"></span></div>
+          <div class="outbox" id="outbox"></div>
+          <div class="ract">
+            <button class="btn primary" type="button" id="openFile"><svg class="ic"><use href="#i-open"/></svg><span id="openFileText">Buka file</span></button>
+            <button class="btn" type="button" id="openFolder"><svg class="ic"><use href="#i-folder"/></svg>Buka folder</button>
+            <button class="btn" type="button" id="copyText"><svg class="ic"><use href="#i-copy"/></svg>Salin teks</button>
+            <button class="btn" type="button" id="toMap"><svg class="ic"><use href="#i-spark"/></svg>Mind map</button>
+          </div>
+          <div class="pv">
+            <div class="pvbar">
+              <div class="tabs" role="tablist" aria-label="Mode pratinjau">
+                <button type="button" role="tab" data-tab="view" aria-selected="true">Tampilan</button>
+                <button type="button" role="tab" data-tab="raw" aria-selected="false">Teks Markdown</button>
+                <button type="button" role="tab" data-tab="map" aria-selected="false">Mind map</button>
+              </div>
+              <span class="pvlabel" id="pvLabel"></span>
+            </div>
+            <div class="pvbody" id="pvBody"></div>
+            <div class="mm" id="mmPanel" hidden>
+              <div class="mmsetup" id="mmSetup">
+                <div class="grp">
+                  <span class="glabel">Buat rangkuman dari</span>
+                  <div class="opts">
+                    <button class="opt" type="button" data-src="struct" aria-pressed="false"><span class="top"><span class="ot">Struktur dokumen</span><span class="rad"></span></span><span class="os">Gratis dan offline. Cabang diambil dari judul dan daftar di dokumen.</span></button>
+                    <button class="opt" type="button" data-src="ai" aria-pressed="true"><span class="top"><span class="ot">Rangkuman AI</span><span class="rad"></span></span><span class="os">Lebih ringkas dan bisa menggabungkan beberapa dokumen. Memakai API key Anda.</span></button>
+                  </div>
+                </div>
+                <div class="grp" id="mmKindGrp">
+                  <span class="glabel">Jenis rangkuman</span>
+                  <div class="kindrow">
+                    <div class="mseg" id="mmKind" role="group" aria-label="Jenis rangkuman"><button type="button" data-k="umum" aria-pressed="true">Umum</button><button type="button" data-k="notulen" aria-pressed="false">Notulen</button><button type="button" data-k="laporan" aria-pressed="false">Laporan</button></div>
+                    <span class="fhint" id="mmKindHint"></span>
+                  </div>
+                </div>
+                <div class="note warn" id="mmNote"></div>
+                <div class="mmgo"><span class="pmeta" id="mmScope"></span><button class="btn primary" type="button" id="mmGo"><svg class="ic"><use href="#i-spark"/></svg><span id="mmGoText">Buat rangkuman AI</span></button></div>
+              </div>
+              <div class="mmbusy" id="mmBusy" hidden><span class="row1"><span class="spin"></span><span id="mmBusyText">Meringkas…</span></span><button class="btn sm" type="button" id="mmStop">Batalkan</button></div>
+              <div class="mmready" id="mmReady" hidden>
+                <div class="mmbar">
+                  <div class="mseg sm" id="mmView" role="group" aria-label="Bentuk rangkuman"><button type="button" data-v="map" aria-pressed="true">Mind map</button><button type="button" data-v="text" aria-pressed="false">Teks</button></div>
+                  <span class="gap"></span>
+                  <button class="btn sm quiet icon" type="button" id="mmOut" aria-label="Perkecil" title="Perkecil">−</button>
+                  <button class="btn sm quiet icon" type="button" id="mmIn" aria-label="Perbesar" title="Perbesar">+</button>
+                  <button class="btn sm quiet" type="button" id="mmFit">Pas</button>
+                  <button class="btn sm quiet" type="button" id="mmFold">Lipat</button>
+                  <button class="btn sm quiet" type="button" id="mmStyleBtn"><svg class="ic"><use href="#i-sliders"/></svg>Gaya</button>
+                  <button class="btn sm quiet" type="button" id="mmFull">Layar penuh</button>
+                  <button class="btn sm" type="button" id="mmSave" aria-haspopup="menu">Simpan</button>
+                  <div class="menu" id="mmMenu" role="menu" hidden><button type="button" role="menuitem" data-f="pdf">PDF (siap cetak)</button><button type="button" role="menuitem" data-f="png">Gambar PNG</button><button type="button" role="menuitem" data-f="html">HTML interaktif</button><button type="button" role="menuitem" data-f="md">Markdown (.md)</button></div>
+                </div>
+                <div class="mmstage"><svg class="mmsvg" id="mmSvg" aria-label="Mind map"></svg><div class="md mmtext" id="mmText" hidden></div>
+                  <div class="mmstyle" id="mmStyle" hidden>
+                    <div class="sthead">Gaya mind map<button class="btn sm quiet icon x" type="button" id="mmStyleClose" aria-label="Tutup gaya mind map"><svg class="ic"><use href="#i-x"/></svg></button></div>
+                    <div class="field"><span class="flabel">Tema warna</span><div class="mseg sm" id="stTheme" role="group" aria-label="Tema warna"><button type="button" data-v="pelangi">Pelangi</button><button type="button" data-v="urai">Urai</button><button type="button" data-v="lembut">Lembut</button><button type="button" data-v="mono">Monokrom</button></div></div>
+                    <div class="field"><span class="flabel">Cara mewarnai</span><div class="mseg sm" id="stMode" role="group" aria-label="Cara mewarnai"><button type="button" data-v="branch">Per cabang</button><button type="button" data-v="level">Per sub</button></div></div>
+                    <div class="field" id="stFreezeF"><span class="flabel">Warna cabang dibedakan sampai</span><div class="mseg sm" id="stFreeze" role="group" aria-label="Warna dibedakan sampai"><button type="button" data-v="1">Sub 1</button><button type="button" data-v="2">Sub 2</button><button type="button" data-v="3">Sub 3</button><button type="button" data-v="0">Semua</button></div><p class="fhint">Sub di bawahnya ikut warna cabang induknya.</p></div>
+                    <div class="field"><span class="flabel">Warna dan tebal garis tiap sub</span><table class="lvl"><tbody id="stLevels"></tbody></table><p class="fhint">Mengubah warna otomatis beralih ke mode Per sub.</p></div>
+                    <div class="field"><label class="flabel" for="stMaxW">Lebar teks maksimal</label><div class="rng"><input type="range" id="stMaxW" min="120" max="480" step="20"><span class="val" id="stMaxWv"></span></div></div>
+                    <div class="field"><label class="flabel" for="stGap">Jarak antar sub</label><div class="rng"><input type="range" id="stGap" min="30" max="160" step="10"><span class="val" id="stGapv"></span></div></div>
+                    <div class="field"><span class="flabel">Tampilkan sampai</span><div class="mseg sm" id="stExpand" role="group" aria-label="Tampilkan sampai"><button type="button" data-v="2">Sub 1</button><button type="button" data-v="3">Sub 2</button><button type="button" data-v="4">Sub 3</button><button type="button" data-v="-1">Semua</button></div></div>
+                    <button class="btn sm" type="button" id="stReset">Kembalikan ke bawaan</button>
+                  </div>
+                </div>
+                <div class="mmfoot"><span class="tag" id="mmSrcTag"></span><span class="tag scan off" id="mmWarn">Bisa keliru, periksa kembali</span><span class="tag ok" id="mmPlace"><svg class="ic"><use href="#i-shield"/></svg>Offline, di komputer ini</span><span class="gap"></span><button class="btn sm quiet" type="button" id="mmRedo">Buat ulang</button></div>
+              </div>
+            </div>
+          </div>
+          <div class="size" id="sizeMeter"></div>
+          <div class="again">
+            <button class="btn quiet sm" type="button" id="again"><svg class="ic"><use href="#i-plus"/></svg>Ubah dokumen lain</button>
+            <button class="btn quiet sm" type="button" id="backSetup">Ubah pengaturan, ulangi</button>
+            <span class="nudge" id="nudge" hidden><svg class="ic"><use href="#i-heart"/></svg>Bermanfaat? <button class="linkbtn" type="button" id="nudgeSupport">Traktir kopi pengembang</button></span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <footer class="statusbar">
+      <span><i class="sdot"></i><span id="sbLeft">Memuat…</span></span>
+      <span id="sbMid"></span>
+      <span class="r" id="sbRight">Urai App · dibangun di atas MarkItDown dari Microsoft</span>
+    </footer>
+  </div>
+
+  <div class="dropov" aria-hidden="true">
+    <div class="dropbox">
+      <span class="up"><svg class="ic"><use href="#i-up"/></svg></span>
+      <h4 id="dropTitle">Lepaskan untuk menambahkan</h4>
+      <p id="dropSub">File atau folder dari File Explorer</p>
+    </div>
+  </div>
+
+  <!-- Pengaturan baca gambar & hasil scan -->
+  <div class="scrim" id="dlgSettings" hidden>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="d-title">
+      <div class="dhead">
+        <div><h4 id="d-title">Baca gambar &amp; hasil scan</h4><p>Atur cara aplikasi membaca tulisan di dalam gambar dan PDF hasil scan.</p></div>
+        <button class="btn quiet sm x" type="button" data-close aria-label="Tutup"><svg class="ic"><use href="#i-x"/></svg></button>
+      </div>
+      <div class="dtabs">
+        <div class="mseg" id="dTabs" role="group" aria-label="Mesin pembaca">
+          <button type="button" data-pane="offline" aria-pressed="true">Offline (gratis)</button>
+          <button type="button" data-pane="ai" aria-pressed="false">AI (berbayar)</button>
+        </div>
+      </div>
+      <div class="dbody">
+        <div class="pane" id="pane-offline">
+          <div class="note err" id="tessMissing" hidden><svg class="ic"><use href="#i-alert"/></svg><span>Mesin baca scan offline (Tesseract) tidak ditemukan. Pasang ulang Urai App, atau pakai mode AI.</span></div>
+          <div class="field">
+            <span class="flabel">Bahasa di dokumen</span>
+            <div class="chips" id="langChips"></div>
+            <p class="fhint">Pilih hanya bahasa yang memang ada. Makin sedikit bahasa, makin cepat dan tepat.</p>
+          </div>
+          <div class="field">
+            <span class="flabel">Ketelitian</span>
+            <div class="mseg" id="qSeg" role="group" aria-label="Ketelitian">
+              <button type="button" data-v="fast" aria-pressed="true">Cepat</button>
+              <button type="button" data-v="accurate" aria-pressed="false">Teliti</button>
+            </div>
+            <p class="fhint">Pilih Teliti untuk scan buram atau foto dari HP. Prosesnya sekitar dua kali lebih lama.</p>
+          </div>
+          <label class="toggle" for="ocrEmbedded"><input type="checkbox" id="ocrEmbedded" checked> Baca juga gambar di dalam Word, PowerPoint, dan Excel</label>
+          <div class="note ok"><svg class="ic"><use href="#i-shield"/></svg><span>Semua diproses di komputer ini. Dokumen tidak dikirim ke internet.</span></div>
+        </div>
+
+        <div class="pane" id="pane-ai" hidden>
+          <div class="field">
+            <span class="flabel">Penyedia AI</span>
+            <div class="prov" id="prov">
+              <button class="pvopt" type="button" data-p="claude" aria-pressed="false">Claude<small>Anthropic</small></button>
+              <button class="pvopt" type="button" data-p="gemini" aria-pressed="false">Gemini<small>Google</small></button>
+              <button class="pvopt" type="button" data-p="deepseek" aria-pressed="false">DeepSeek<small>DeepSeek</small></button>
+              <button class="pvopt" type="button" data-p="openai" aria-pressed="false">OpenAI<small>ChatGPT</small></button>
+              <button class="pvopt" type="button" data-p="openrouter" aria-pressed="false">OpenRouter<small>banyak model</small></button>
+              <button class="pvopt" type="button" data-p="other" aria-pressed="false">Lainnya<small>server sendiri</small></button>
+            </div>
+          </div>
+          <div class="field">
+            <label class="flabel" for="apiKey">API key</label>
+            <div class="keyrow">
+              <div class="inp"><input id="apiKey" type="password" spellcheck="false" autocomplete="off"><button class="eye" type="button" id="keyEye" aria-label="Tampilkan API key" title="Tampilkan"><svg class="ic"><use href="#i-eye"/></svg></button></div>
+              <button class="btn" type="button" id="testConn">Tes koneksi</button>
+            </div>
+            <p class="fhint" id="keyHint"></p>
+          </div>
+          <div class="note warn"><svg class="ic"><use href="#i-alert"/></svg><span>Gambar dari dokumen akan dikirim ke <b id="provName">penyedia AI</b>. Untuk dokumen rahasia, pakai mode Offline.</span></div>
+          <details class="adv" id="advBox">
+            <summary>Lanjutan: model dan alamat server</summary>
+            <div class="field">
+              <label class="flabel" for="modelName">Model</label>
+              <div class="inp"><input id="modelName" type="text" spellcheck="false"></div>
+              <p class="fhint">Model harus bisa membaca gambar untuk mode AI. Untuk rangkuman mind map, model teks biasa sudah cukup.</p>
+            </div>
+            <div class="field">
+              <label class="flabel" for="baseUrl">Alamat server (kompatibel OpenAI)</label>
+              <div class="inp"><input id="baseUrl" type="text" spellcheck="false" placeholder="https://…/v1"></div>
+            </div>
+          </details>
+        </div>
+      </div>
+      <div class="dfoot">
+        <span class="fmsg" id="testMsg"></span>
+        <span class="gap"></span>
+        <button class="btn" type="button" data-close>Batal</button>
+        <button class="btn primary" type="button" id="dSave">Simpan &amp; pakai mode ini</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dukung -->
+  <div class="scrim" id="dlgSupport" hidden>
+    <div class="dialog narrow" role="dialog" aria-modal="true" aria-labelledby="s-title">
+      <div class="dhead">
+        <div><h4 id="s-title">Dukung Urai App</h4><p>Urai App gratis dan open source. Semua fitur bisa dipakai tanpa membayar.</p></div>
+        <button class="btn quiet sm x" type="button" data-close aria-label="Tutup"><svg class="ic"><use href="#i-x"/></svg></button>
+      </div>
+      <div class="dbody">
+        <div class="sup">
+          <div class="qr" id="qrBox">
+            <img id="qrImg" alt="QRIS GoPay Merchant atas nama mahesarnol app" hidden>
+            <div id="qrPlaceholder" role="img" aria-label="Tempat QRIS. QRIS resmi belum dipasang di versi ini.">
+              <div class="grid" id="qrGrid"></div>
+              <div class="stamp"><span>QRIS resmi<br>menyusul</span></div>
+            </div>
+            <div class="qrlabel">QRIS · GoPay Merchant</div>
+          </div>
+          <div>
+            <h5>Traktir kopi pengembang</h5>
+            <p id="supText">Kalau Urai App membantu pekerjaan Anda, scan QRIS ini dari aplikasi bank atau dompet digital apa pun. Nominal bebas.</p>
+            <dl class="payee"><dt>Penerima</dt><dd id="payeeName">mahesarnol app</dd><dt>Bisa dari</dt><dd>GoPay, OVO, DANA, ShopeePay, LinkAja, mobile banking</dd></dl>
+            <p class="fhint">Pastikan nama penerima di layar pembayaran adalah <b id="payeeName2">mahesarnol app</b>. Unduh Urai App hanya dari GitHub atau Google Drive resmi.</p>
+          </div>
+        </div>
+      </div>
+      <div class="dfoot">
+        <span class="gap"></span>
+        <button class="btn" type="button" data-close>Nanti saja</button>
+        <button class="btn primary" type="button" id="supDone">Sudah mendukung</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tentang -->
+  <div class="scrim" id="dlgAbout" hidden>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="a-title">
+      <div class="dhead">
+        <div><div class="about-top"><h4 id="a-title">Urai App</h4><span class="ver" id="aboutVer">Versi 3.0.0</span></div><p>Urai dokumen jadi teks Markdown yang rapi.</p></div>
+        <button class="btn quiet sm x" type="button" data-close aria-label="Tutup"><svg class="ic"><use href="#i-x"/></svg></button>
+      </div>
+      <div class="dbody">
+        <p class="credit" id="aboutCredit"></p>
+        <div class="field">
+          <span class="flabel">Kontak dan kode sumber</span>
+          <div class="crow"><span class="k">Email</span><span class="v" id="aboutMail"></span><button class="btn sm" type="button" id="copyMail"><svg class="ic"><use href="#i-copy"/></svg>Salin</button></div>
+          <div class="crow"><span class="k">X, Instagram</span><span class="v" id="aboutSocial"></span></div>
+          <div class="crow"><span class="k">Kode sumber</span><span class="v" id="aboutRepo">GitHub, tautan menyusul</span><button class="btn sm" type="button" id="openRepo" hidden><svg class="ic"><use href="#i-open"/></svg>Buka</button></div>
+        </div>
+        <div class="field">
+          <span class="flabel">Privasi</span>
+          <p class="fhint">Urai App tidak mengumpulkan data apa pun dan tidak punya server. Dokumen hanya keluar dari komputer ini bila Anda memakai mode AI atau Rangkuman AI (dikirim ke penyedia AI pilihan Anda), menambah link YouTube atau halaman web (diambil dari situsnya), atau mengubah rekaman suara (dikirim ke layanan pengenal suara Google).</p>
+        </div>
+        <div class="field">
+          <span class="flabel">Komponen pihak ketiga</span>
+          <table class="lic">
+            <thead><tr><th>Komponen</th><th>Kegunaan</th><th>Lisensi</th></tr></thead>
+            <tbody>
+              <tr><td>MarkItDown</td><td>Mesin konversi dokumen</td><td>MIT</td></tr>
+              <tr><td>Tesseract OCR</td><td>Baca scan offline</td><td>Apache 2.0</td></tr>
+              <tr><td>pypdfium2 (PDFium)</td><td>Membuka halaman PDF</td><td>BSD-3 / Apache 2.0</td></tr>
+              <tr><td>pywebview</td><td>Jendela aplikasi</td><td>BSD-3</td></tr>
+              <tr><td>OpenAI Python SDK</td><td>Menghubungi penyedia AI</td><td>Apache 2.0</td></tr>
+              <tr><td>youtube-transcript-api</td><td>Transkrip YouTube</td><td>MIT</td></tr>
+              <tr><td>SpeechRecognition</td><td>Rekaman suara ke teks</td><td>BSD-3</td></tr>
+              <tr><td>markmap, d3</td><td>Mind map</td><td>MIT, ISC</td></tr>
+              <tr><td>ReportLab</td><td>Membuat PDF mind map</td><td>BSD-3</td></tr>
+              <tr><td>Plus Jakarta Sans, JetBrains Mono</td><td>Huruf</td><td>OFL 1.1</td></tr>
+              <tr><td>Pustaka pendukung lain</td><td>Pendukung</td><td>MIT, BSD, Apache, MPL 2.0</td></tr>
+            </tbody>
+          </table>
+          <p class="fhint">Teks lengkap semua lisensi ada di file THIRD-PARTY-NOTICES.txt di folder aplikasi.</p>
+        </div>
+      </div>
+      <div class="dfoot">
+        <span class="fmsg" id="updMsg"></span>
+        <span class="gap"></span>
+        <button class="btn" type="button" id="getUpd" hidden>Buka halaman unduhan</button>
+        <button class="btn" type="button" id="chkUpd">Cek pembaruan</button>
+        <button class="btn" type="button" id="openLic">Lihat lisensi lengkap</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panduan -->
+  <div class="scrim" id="dlgHelp" hidden>
+    <div class="dialog wide" role="dialog" aria-modal="true" aria-labelledby="h-title">
+      <div class="dhead">
+        <div><h4 id="h-title">Panduan singkat</h4><p>Tiga langkah, dari dokumen sampai file Markdown.</p></div>
+        <button class="btn quiet sm x" type="button" data-close aria-label="Tutup"><svg class="ic"><use href="#i-x"/></svg></button>
+      </div>
+      <div class="dbody">
+        <ol class="guide">
+          <li><b>Tambahkan dokumen</b><span>Tarik file atau folder dari File Explorer ke jendela ini, atau tekan tombol <b>File</b> dan <b>Folder</b>. Link YouTube dan halaman web ditempel di kolom paling bawah, lalu tekan Enter. Bisa juga klik kanan file di File Explorer, pilih <b>Kirim ke › Urai App</b>.</span></li>
+          <li><b>Atur hasil</b><span>Pilih <b>Satu file per dokumen</b> atau <b>Gabung jadi satu</b>. Untuk gabungan, urutan isi mengikuti daftar; seret pegangan titik-titik untuk memindahkan. Pilih cara membaca scan: <b>Mati</b>, <b>Offline</b> (gratis, di komputer ini), atau <b>AI</b> (lebih akurat, memakai API key Anda).</span></li>
+          <li><b>Tekan tombol biru</b><span>Atau Ctrl + Enter. File .md tersimpan di folder pilihan Anda. Dari panel hasil, buka file, salin teks, atau buat <b>Mind map</b> dari isinya.</span></li>
+        </ol>
+        <div class="field">
+          <span class="flabel">Tips</span>
+          <ul class="tips">
+            <li>File Markdown (.md) cocok diunggah ke ChatGPT, Claude, Gemini, atau NotebookLM. Ukurannya jauh lebih kecil dari PDF dan isinya lebih mudah dibaca AI.</li>
+            <li><b>PDF hasil scan</b> dikenali otomatis dan diberi label. Untuk scan buram atau foto dari HP, pilih Ketelitian <b>Teliti</b> di Pengaturan.</li>
+            <li><b>Mind map</b>: Struktur dokumen gratis dan offline, cocok untuk Word dan PowerPoint yang punya judul dan subjudul. Rangkuman AI lebih ringkas dan punya jenis Umum, Notulen, dan Laporan. Rangkuman AI bisa keliru, selalu periksa kembali.</li>
+            <li><b>Link YouTube</b> (Eksperimental): hanya video yang punya subtitle atau transkrip. Transkrip bahasa Indonesia diambil lebih dulu, lalu bahasa Inggris.</li>
+            <li><b>Rekaman suara</b> (Eksperimental): rekaman dikirim ke layanan pengenal suara Google, bahasa Indonesia. File WAV langsung bisa. MP3 dan M4A butuh FFmpeg terpasang di komputer. <button class="linkbtn" type="button" data-link="ffmpeg">Unduh FFmpeg</button></li>
+            <li>Ada masalah? Kirim email beserta file catatan dari folder <b>%APPDATA%\UraiApp\logs</b>. Isi dokumen Anda tidak tercatat di sana.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="dfoot"><span class="gap"></span><button class="btn primary" type="button" data-close>Mengerti</button></div>
+    </div>
+  </div>
+
+  <!-- Simpan mind map sebagai PDF -->
+  <div class="scrim" id="dlgPdf" hidden>
+    <div class="dialog narrow" role="dialog" aria-modal="true" aria-labelledby="p-title">
+      <div class="dhead">
+        <div><h4 id="p-title">Simpan mind map sebagai PDF</h4><p>Siap dicetak atau dilampirkan ke laporan.</p></div>
+        <button class="btn quiet sm x" type="button" data-close aria-label="Tutup"><svg class="ic"><use href="#i-x"/></svg></button>
+      </div>
+      <div class="dbody">
+        <div class="pdfprev">
+          <div class="pbox"><div class="paper" id="pdfPaper"><div class="ph" id="pdfHead"><span class="pt"></span><span class="pd"></span></div><img id="pdfImg" alt="Pratinjau mind map di halaman PDF"><span class="pl" id="pdfLbl"></span></div></div>
+          <div class="pinfo" id="pdfInfo"></div>
+        </div>
+        <div class="field"><span class="flabel">Ukuran kertas</span><div class="mseg" id="pdfSize" role="group" aria-label="Ukuran kertas"><button type="button" data-v="A4">A4</button><button type="button" data-v="A3">A3</button><button type="button" data-v="F4">F4 (folio)</button></div></div>
+        <div class="field"><span class="flabel">Orientasi</span><div class="mseg" id="pdfOrient" role="group" aria-label="Orientasi"><button type="button" data-v="land">Mendatar</button><button type="button" data-v="port">Tegak</button></div></div>
+        <div class="field"><span class="flabel">Isi PDF</span>
+          <label class="toggle" for="pdfTitle"><input type="checkbox" id="pdfTitle" checked> Judul dokumen dan tanggal</label>
+          <label class="toggle" for="pdfLabel" id="pdfLabelRow"><input type="checkbox" id="pdfLabel" checked> Label sumber rangkuman ("Rangkuman AI, periksa kembali")</label>
+          <label class="toggle" for="pdfText"><input type="checkbox" id="pdfText"> Halaman tambahan berisi rangkuman dalam bentuk teks</label>
+        </div>
+      </div>
+      <div class="dfoot">
+        <span class="fmsg" id="pdfMsg"></span>
+        <span class="gap"></span>
+        <button class="btn" type="button" data-close>Batal</button>
+        <button class="btn primary" type="button" id="pdfSave">Simpan PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="boot" id="boot">Memuat Urai App…</div>
+</div>
+
+<script src="vendor/d3.min.js"></script>
+<script src="vendor/markmap-view.js"></script>
+<script src="vendor/markmap-lib.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
