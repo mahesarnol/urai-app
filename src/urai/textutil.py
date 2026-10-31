@@ -1,11 +1,13 @@
 """Fungsi bantu untuk teks Markdown, nama file, dan ukuran."""
 from __future__ import annotations
 
+import os
 import re
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
-from .i18n import fmt_date, fmt_num, t
+from .i18n import fmt_date, fmt_num, t, variants
 
 _WORD = re.compile(r"\w+", re.UNICODE)
 
@@ -69,16 +71,47 @@ def demote_headings(md: str, levels: int = 1) -> str:
     return "\n".join(out)
 
 
+COMBINED_SEP = "\n\n---\n\n"
+
+
+def combined_section(name: str, text: str, empty: str | None = None) -> str:
+    """Bagian satu dokumen di file gabungan."""
+    body = demote_headings(text.strip()) if text.strip() else (empty or t("md.combined_empty"))
+    return f"# {name}\n\n{body}"
+
+
+def combined_sections(name: str, text: str) -> list[str]:
+    """Semua bentuk yang mungkin dari bagian dokumen ini (teks pengganti dokumen kosong ditulis dalam
+    bahasa yang aktif saat file gabungan dibuat)."""
+    if text.strip():
+        return [combined_section(name, text)]
+    return [combined_section(name, "", e) for e in variants("md.combined_empty")]
+
+
 def build_combined(entries: list[tuple[str, str]], now: datetime | None = None) -> str:
     """entries: daftar (nama sumber, isi markdown) sesuai urutan daftar."""
     stamp = fmt_date(now or datetime.now(), with_time=True)
     head = [t("md.combined_head", n=len(entries), date=stamp, app="Urai App"), ">"]
     head += [f"> {i}. {name}" for i, (name, _) in enumerate(entries, 1)]
-    parts = ["\n".join(head)]
-    for name, text in entries:
-        body = demote_headings(text.strip()) if text.strip() else t("md.combined_empty")
-        parts.append(f"# {name}\n\n{body}")
-    return "\n\n---\n\n".join(parts) + "\n"
+    parts = ["\n".join(head)] + [combined_section(name, text) for name, text in entries]
+    return COMBINED_SEP.join(parts) + "\n"
+
+
+def write_atomic(path: Path, text: str) -> None:
+    """Tulis file lewat file sementara di folder yang sama lalu ganti sekaligus, supaya isi file
+    tidak pernah setengah tertulis. Gagal (mis. file dikunci aplikasi lain) berarti file lama tetap utuh."""
+    path = Path(path)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.stem[:40]}-", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(text)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def base_name(name: str) -> str:

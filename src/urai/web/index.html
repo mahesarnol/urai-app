@@ -37,6 +37,8 @@
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor" stroke="none"/></symbol>
   <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.8h.01"/></symbol>
   <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></symbol>
   <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M20 16l-5-5-8 8"/></symbol>
 </svg>
 
@@ -82,6 +84,13 @@
           <span class="try" id="tryWrap"><span data-i18n="dz.tryQ">First time here?</span> <button class="linkbtn" type="button" id="tryDemo" data-i18n="dz.try">Try with sample files</button></span>
         </div>
 
+        <div class="listbar" id="listBar">
+          <label class="check" for="pickAll"><input type="checkbox" id="pickAll"><span data-i18n="list.all">Select all</span></label>
+          <span class="pmeta" id="pickCount"></span>
+          <span class="gap"></span>
+          <button class="btn sm quiet" type="button" id="rmPicked" disabled data-i18n="list.remove" data-i18n-attr="title:list.hint" title="Removes items from this list only. Files on your computer are not deleted."><svg class="ic"><use href="#i-trash"/></svg>Remove selected</button>
+          <button class="btn sm quiet" type="button" id="clearAll" data-i18n="list.clear" data-i18n-attr="title:list.hint" title="Removes items from this list only. Files on your computer are not deleted.">Clear all</button>
+        </div>
         <ul class="files" id="files" data-i18n-attr="aria-label:files.aria" aria-label="Document list"></ul>
         <p class="orderhint" data-i18n="files.orderHint"><svg class="ic"><use href="#i-grip"/></svg>The order of this list is the order of the combined file. Drag the handle to move an item.</p>
 
@@ -170,6 +179,14 @@
                 <button type="button" role="tab" data-tab="map" aria-selected="false" data-i18n="tab.map">Mind map</button>
               </div>
               <span class="pvlabel" id="pvLabel"></span>
+              <button class="btn sm quiet" type="button" id="edBtn" data-i18n="ed.edit"><svg class="ic"><use href="#i-edit"/></svg>Edit</button>
+            </div>
+            <div class="edbar" id="edBar" hidden>
+              <svg class="ic"><use href="#i-edit"/></svg><span class="edmsg" id="edMsg"></span>
+              <span class="gap"></span>
+              <button class="btn sm" type="button" id="edDiscard" data-i18n="ed.discard">Discard</button>
+              <button class="btn sm primary" type="button" id="edSave" data-i18n="ed.save">Save changes</button>
+              <button class="btn sm primary" type="button" id="edDone" data-i18n="ed.done">Done</button>
             </div>
             <div class="pvbody" id="pvBody"></div>
             <div class="mm" id="mmPanel" hidden>
@@ -200,12 +217,30 @@
                   <button class="btn sm quiet icon" type="button" id="mmIn" data-i18n-attr="aria-label:mm.zoomIn;title:mm.zoomIn" aria-label="Zoom in" title="Zoom in">+</button>
                   <button class="btn sm quiet" type="button" id="mmFit" data-i18n="mm.fit">Fit</button>
                   <button class="btn sm quiet" type="button" id="mmFold" data-i18n="mm.fold">Collapse</button>
+                  <button class="btn sm quiet icon" type="button" id="mmEdit" aria-pressed="false" data-i18n-attr="aria-label:mm.edit;title:mm.edit" aria-label="Edit" title="Edit"><svg class="ic"><use href="#i-edit"/></svg></button>
                   <button class="btn sm quiet" type="button" id="mmStyleBtn" data-i18n="mm.style"><svg class="ic"><use href="#i-sliders"/></svg>Style</button>
                   <button class="btn sm quiet" type="button" id="mmFull" data-i18n="mm.full">Full screen</button>
                   <button class="btn sm" type="button" id="mmSave" aria-haspopup="menu" data-i18n="mm.save">Save</button>
                   <div class="menu" id="mmMenu" role="menu" hidden><button type="button" role="menuitem" data-f="pdf" data-i18n="mm.fmtPdf">PDF (print-ready)</button><button type="button" role="menuitem" data-f="png" data-i18n="mm.fmtPng">PNG image</button><button type="button" role="menuitem" data-f="html" data-i18n="mm.fmtHtml">Interactive HTML</button><button type="button" role="menuitem" data-f="md" data-i18n="mm.fmtMd">Markdown (.md)</button></div>
                 </div>
+                <div class="mmedbar" id="mmEdBar" hidden>
+                  <svg class="ic"><use href="#i-edit"/></svg><span id="mmEdMsg"></span>
+                  <span class="gap"></span>
+                  <button class="btn sm quiet" type="button" id="mmUndo" data-i18n="mm.undo">Undo</button>
+                  <button class="btn sm" type="button" id="mmApply" data-i18n="mm.apply">Apply changes</button>
+                  <button class="btn sm primary" type="button" id="mmEdDone" data-i18n="ed.done">Done</button>
+                </div>
                 <div class="mmstage"><svg class="mmsvg" id="mmSvg" data-i18n-attr="aria-label:mm.title" aria-label="Mind map"></svg><div class="md mmtext" id="mmText" hidden></div>
+                  <textarea class="mmta" id="mmTa" spellcheck="false" hidden data-i18n-attr="aria-label:mm.edHintText" aria-label="Edit the outline, then apply your changes."></textarea>
+                  <div class="mmnode" id="mmNodeEd" role="dialog" hidden data-i18n-attr="aria-label:mm.edTitle" aria-label="Edit branch">
+                    <div class="inp"><input id="mmNodeIn" type="text" spellcheck="false" data-i18n-attr="aria-label:mm.nodeAria" aria-label="Branch text"></div>
+                    <div class="acts">
+                      <button class="btn sm primary" type="button" id="mmRename" data-i18n="mm.rename">Rename</button>
+                      <button class="btn sm" type="button" id="mmDelBranch" data-i18n="mm.delBranch"><svg class="ic"><use href="#i-trash"/></svg>Delete branch</button>
+                      <button class="btn sm quiet" type="button" id="mmNodeCancel" data-i18n="cancel">Cancel</button>
+                    </div>
+                    <p class="fhint" id="mmNodeHint"></p>
+                  </div>
                   <div class="mmstyle" id="mmStyle" hidden>
                     <div class="sthead" data-i18n="sty.head">Mind map style<button class="btn sm quiet icon x" type="button" id="mmStyleClose" data-i18n-attr="aria-label:sty.close" aria-label="Close mind map style"><svg class="ic"><use href="#i-x"/></svg></button></div>
                     <div class="field"><span class="flabel" data-i18n="sty.theme">Color theme</span><div class="mseg sm" id="stTheme" role="group" data-i18n-attr="aria-label:sty.theme" aria-label="Color theme"><button type="button" data-v="pelangi" data-i18n="sty.pelangi">Rainbow</button><button type="button" data-v="urai" data-i18n="sty.urai">Urai</button><button type="button" data-v="lembut" data-i18n="sty.lembut">Soft</button><button type="button" data-v="mono" data-i18n="sty.mono">Monochrome</button></div></div>

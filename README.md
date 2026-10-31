@@ -4,7 +4,7 @@
 
 **Turn documents into clean Markdown text.** A free, open-source Windows app that converts PDF, Word, PowerPoint, Excel, images, voice recordings, and YouTube links into Markdown (`.md`) files ready to upload to ChatGPT, Claude, Gemini, or NotebookLM. Built on Microsoft's [MarkItDown](https://github.com/microsoft/markitdown), with an interface that is easy for non-technical users.
 
-> The app interface is in Indonesian. Button names below are written as they appear in the app, with an English translation in parentheses.
+> The app is available in English (default) and Bahasa Indonesia. Change the language in **Settings › General**.
 
 ![Urai App after converting six documents](docs/img/selesai.png)
 
@@ -12,12 +12,14 @@
 
 - **Drag and drop.** Drag many files or a whole folder onto the window. You can also right-click files in File Explorer and choose **Send to › Urai App**.
 - **One file per document, or merge into one.** Reorder the contents of the merged file by dragging the list.
+- **Select and remove.** Tick one, several, or all documents to remove them from the list, or clear the whole list. Files on your computer are never deleted.
+- **Edit the results.** Fix or delete any part right in the preview, edit the Markdown text directly, or rename and delete mind map branches. Changes are saved to the `.md` file.
 - **Read scanned PDFs and images offline.** Uses the bundled Tesseract OCR, running on your CPU. Supports Indonesian, English, Javanese, Sundanese, and Arabic. Scanned PDFs are detected automatically.
 - **AI mode (optional).** Use your own API key from Claude, Gemini, DeepSeek, OpenAI, OpenRouter, or another compatible server. More accurate for blurry scans, and it can describe charts.
 - **Read images inside Word, PowerPoint, and Excel**, such as charts or tables pasted as pictures.
-- **Mind maps.** Turn results into interactive mind maps like [markmap](https://markmap.js.org), either from the document structure (free, offline) or from an AI summary (General, Minutes, or Report). Colors and line widths can be set per level. Save as print-ready PDF (A4, A3, F4), PNG, interactive HTML, or Markdown.
+- **Mind maps.** Turn results into interactive mind maps like [markmap](https://markmap.js.org), either from the document structure (free, offline) or from an AI summary (Key points, Minutes, or Full summary). Colors and line widths can be set per level. Save as print-ready PDF (A4, A3, F4), PNG, interactive HTML, or Markdown.
 - **Experimental:** YouTube video transcripts and speech-to-text for voice recordings.
-- **Light and dark themes** that follow your Windows setting.
+- **English or Bahasa Indonesia**, with a light, dark, or system theme.
 
 ![Mind map with the style panel](docs/img/mindmap.png)
 
@@ -38,8 +40,8 @@ Prefer not to install? Download `UraiApp-3.0.0-portable.zip`, extract it, and ru
 ## How to use
 
 1. **Add documents**: drag them onto the window, or press **File** / **Folder**. Paste YouTube links and web pages into the field at the bottom.
-2. **Set up the output**: choose one file per document or a single merged file, how to read scans (**Mati** (Off), **Offline**, or **AI**), and where to save.
-3. **Press the blue button** (or Ctrl + Enter). Results are saved to `Documents\Urai App`, ready to open, copy, or turn into a mind map.
+2. **Set up the output**: choose one file per document or a single merged file, how to read scans (**Off**, **Offline**, or **AI**), and where to save.
+3. **Press the blue button** (or Ctrl + Enter). Results are saved to `Documents\Urai App`, ready to open, copy, edit, or turn into a mind map.
 
 The full guide is in [docs/GUIDE.md](docs/GUIDE.md).
 
@@ -78,7 +80,7 @@ src/urai/            application code (Python)
   export.py          mind map export: Markdown, offline HTML, PNG, PDF (ReportLab)
   settings.py        JSON settings + API keys in Windows Credential Manager
   web/               UI: index.html, app.css, app.js, markmap/d3 libraries, fonts
-  samples/           sample files for the "Coba dengan file contoh" (Try with sample files) button
+  samples/           sample files for the "Try with sample files" button
 packaging/           PyInstaller, Inno Setup, Tesseract download, license list
 tests/               pytest (including UI tests with Playwright)
 .github/workflows/   automated tests and installer builds

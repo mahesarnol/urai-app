@@ -101,6 +101,30 @@ def test_full_flow(app_url, scheme):
         png = next((tmp / "exports").glob("*.png")).read_bytes()
         assert png.startswith(b"\x89PNG") and len(png) > 20000
 
+        # edit mind map: ganti nama satu cabang, lalu hapus cabang itu beserta isinya; ekspor memakai hasil edit
+        node = "#mmSvg g.markmap-node"
+        outline = next((tmp / "exports").glob("*.md")).read_text(encoding="utf-8")
+        page.click("#mmEdit")
+        page.wait_for_selector("#mmEdBar:not([hidden])")
+        nodes = page.locator(node).count()
+        page.locator(node).nth(1).locator("foreignObject").click()  # urutan 0 = judul utama
+        page.wait_for_selector("#mmNodeEd:not([hidden])")
+        assert page.is_visible("#mmDelBranch")
+        page.fill("#mmNodeIn", "Cabang uji")
+        page.press("#mmNodeIn", "Enter")
+        page.wait_for_function("document.getElementById('mmSvg').textContent.includes('Cabang uji')")
+        page.locator(node, has_text="Cabang uji").first.locator("foreignObject").click()
+        page.wait_for_selector("#mmNodeEd:not([hidden])")
+        page.click("#mmDelBranch")
+        page.wait_for_function(f"!document.getElementById('mmSvg').textContent.includes('Cabang uji') && document.querySelectorAll('{node}').length < {nodes}")
+        shot(page, "4c-map-edited")
+        page.click("#mmEdDone")
+        page.click("#mmSave")
+        page.click("#mmMenu button[data-f=md]")
+        page.wait_for_function("document.getElementById('toast').textContent.includes('mind map.md')", timeout=20000)
+        edited = max((tmp / "exports").glob("*.md"), key=lambda p: p.stat().st_mtime).read_text(encoding="utf-8")
+        assert "Cabang uji" not in edited and len(edited.splitlines()) < len(outline.splitlines())
+
         # dialog utama terbuka dan tertutup dengan Escape
         for btn, dlg in (("#btnSettings", "#dlgSettings"), ("#btnAbout", "#dlgAbout"), ("#btnSupport", "#dlgSupport"), ("#btnHelp", "#dlgHelp")):
             page.click(btn)
@@ -163,6 +187,40 @@ def test_full_flow(app_url, scheme):
             page.click("[data-fix]")
             page.wait_for_function(f"document.querySelectorAll('#files .st.warn').length === {left} && !document.querySelector('#files .st.work')", timeout=60000)
         assert page.locator("#files .st.ok").count() == 6
+
+        # edit hasil di Tampilan: ganti satu bagian, simpan, lalu file .md di disk harus sama persis dengan draf
+        mark = "# Notulen yang diedit"
+        page.click("#files .row:has-text('Notulen') .ftxt")
+        page.click("#edBtn")
+        page.wait_for_selector("#pvBody .md.editing .eb")
+        page.click(".tabs button[data-tab=raw]")
+        original = page.input_value("#edRaw")
+        page.click(".tabs button[data-tab=view]")
+        block = page.locator("#pvBody .eb").first
+        start, end = map(int, block.get_attribute("data-l").split(","))
+        block.hover()
+        block.locator("[data-eb=edit]").click()
+        page.fill("#pvBody .ebta", mark)
+        page.keyboard.press("Control+Enter")
+        page.wait_for_selector("#edBar.dirty")
+        page.click("#files .row:has-text('Bab 1') .ftxt")  # pindah dokumen ditahan selama ada perubahan
+        assert "Save or discard" in page.text_content("#toast")
+        page.click("#edSave")
+        page.wait_for_function("document.getElementById('toast').textContent.startsWith('Saved to')")
+        lines = original.split("\n")
+        lines[start:end] = [mark]
+        saved = [p for p in (tmp / "out").glob("*.md") if mark in p.read_text(encoding="utf-8")]
+        assert len(saved) == 1 and saved[0].read_text(encoding="utf-8").strip() == "\n".join(lines).strip()
+        page.click("#edDone")
+
+        # pilih dua baris lalu hapus dari daftar; file di komputer tidak ikut terhapus
+        files_on_disk = sorted(p.name for p in (tmp / "out").iterdir())
+        page.check("#files .row:nth-child(1) .pick")
+        page.check("#files .row:nth-child(2) .pick")
+        assert page.text_content("#pickCount") == "2 selected"
+        page.click("#rmPicked")
+        page.wait_for_function("document.querySelectorAll('#files .row').length === 4")
+        assert sorted(p.name for p in (tmp / "out").iterdir()) == files_on_disk
 
         # tautan apa pun tidak boleh membuat jendela aplikasi pindah halaman
         before = page.url

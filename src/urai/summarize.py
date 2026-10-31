@@ -89,7 +89,9 @@ def struct_outline(title: str, md: str, nested: bool = False) -> str:
     heads = [len(m.group(1)) for m in (re.match(r"^\s*(#{1,6})\s+\S", l) for l in lines) if m]
     structured = bool(heads)
     h1_count = heads.count(1)
-    md_shift = 1 if h1_count >= 2 else 0  # beberapa judul tingkat 1 berarti itu bab, bukan judul dokumen
+    # Beberapa judul tingkat 1 berarti itu bab, bukan judul dokumen. Satu judul tingkat 1 hanya dianggap
+    # judul dokumen bila ia judul pertama; bila muncul setelah judul lain, ia bab dan tidak boleh hilang.
+    md_shift = 1 if h1_count >= 2 or (h1_count == 1 and heads[0] != 1) else 0
     nodes: list[list] = []  # [jenis, teks]; jenis: h<level> | item | para
     in_code = False
     table = False          # sedang di dalam (atau di sela-sela potongan) tabel

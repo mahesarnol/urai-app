@@ -4,22 +4,24 @@
 
 **Urai dokumen jadi teks Markdown yang rapi.** Aplikasi Windows gratis dan open source untuk mengubah PDF, Word, PowerPoint, Excel, gambar, rekaman suara, dan link YouTube menjadi file Markdown (`.md`) yang siap diunggah ke ChatGPT, Claude, Gemini, atau NotebookLM. Dibangun di atas [MarkItDown](https://github.com/microsoft/markitdown) dari Microsoft, dengan tampilan yang mudah untuk orang awam.
 
-![Urai App setelah selesai mengubah enam dokumen](docs/img/selesai.png)
+![Urai App setelah selesai mengubah enam dokumen](docs/img/id/selesai.png)
 
 ## Fitur
 
 - **Tarik dan lepas.** Tarik banyak file atau satu folder penuh ke jendela. Bisa juga klik kanan file di File Explorer, lalu **Kirim ke › Urai App**.
 - **Satu file per dokumen, atau gabung jadi satu.** Urutan isi file gabungan diatur dengan menyeret daftar.
 - **Baca PDF hasil scan dan gambar tanpa internet.** Memakai Tesseract OCR yang ikut terpasang, berjalan di prosesor. Bahasa Indonesia, Inggris, Jawa, Sunda, dan Arab. PDF hasil scan dikenali otomatis.
+- **Pilih dan hapus.** Centang satu, beberapa, atau semua dokumen untuk menghapusnya dari daftar, atau kosongkan seluruh daftar. File di komputer tidak pernah ikut terhapus.
+- **Edit hasil.** Perbaiki atau hapus bagian mana pun langsung di Tampilan, edit teks Markdown-nya, atau ganti nama dan hapus cabang mind map. Perubahan disimpan ke file `.md`.
 - **Mode AI (opsional).** Pakai API key Anda sendiri dari Claude, Gemini, DeepSeek, OpenAI, OpenRouter, atau server lain yang kompatibel. Lebih akurat untuk scan buram dan bisa menjelaskan grafik.
 - **Baca gambar di dalam Word, PowerPoint, dan Excel**, misalnya grafik atau tabel yang ditempel sebagai gambar.
 - **Mind map.** Ubah hasil menjadi mind map interaktif seperti [markmap](https://markmap.js.org), dari struktur dokumen (gratis, offline) atau rangkuman AI (jenis Poin utama, Notulen, Ringkas lengkap). Warna dan tebal garis bisa diatur per sub. Simpan sebagai PDF siap cetak (A4, A3, F4), PNG, HTML interaktif, atau Markdown.
 - **Eksperimental:** transkrip video YouTube dan rekaman suara ke teks.
 - **Dua bahasa dan tiga tema.** Tampilan berbahasa Inggris (bawaan) atau Indonesia, dengan tema terang, gelap, atau mengikuti Windows. Atur di **Pengaturan › Umum**.
 
-![Mind map dengan panel gaya](docs/img/mindmap.png)
+![Mind map dengan panel gaya](docs/img/id/mindmap.png)
 
-![Tema gelap](docs/img/gelap.png)
+![Tema gelap](docs/img/id/gelap.png)
 
 ## Unduh dan pasang
 
@@ -37,7 +39,7 @@ Tidak ingin memasang? Unduh `UraiApp-3.0.0-portable.zip`, ekstrak, lalu jalankan
 
 1. **Tambahkan dokumen**: tarik ke jendela, atau tekan **File** / **Folder**. Link YouTube dan halaman web ditempel di kolom bawah.
 2. **Atur hasil**: pilih satu file per dokumen atau gabung jadi satu, cara membaca scan (Mati, Offline, AI), dan folder penyimpanan.
-3. **Tekan tombol biru** (atau Ctrl + Enter). Hasil tersimpan di `Dokumen\Urai App`, bisa langsung dibuka, disalin, atau dibuat mind map.
+3. **Tekan tombol biru** (atau Ctrl + Enter). Hasil tersimpan di `Dokumen\Urai App`, bisa langsung dibuka, disalin, diedit, atau dibuat mind map.
 
 Panduan lengkap ada di [docs/GUIDE.id.md](docs/GUIDE.id.md).
 

@@ -17,6 +17,16 @@ def test_struct_word_style_multiple_h1():
     assert "- Notulen Rapat Pengurus" not in out  # judul yang diulang di baris pertama dilewati
 
 
+def test_struct_single_h1_after_other_heading_is_kept():
+    # mis. setelah diedit: judul pertama jadi tingkat 2, satu-satunya tingkat 1 ada di tengah
+    md = "Notulen\n\n## Pembahasan\n\n1. Atap bocor\n\n# Keputusan\n\n* Perbaiki atap\n"
+    out = struct_outline("Notulen.docx", md)
+    assert "Keputusan" in out and "Pembahasan" in out and "Perbaiki atap" in out
+    # satu judul tingkat 1 di awal tetap dianggap judul dokumen
+    first = struct_outline("Laporan.docx", "# Laporan\n\n## Ringkasan\n\n- Poin\n").splitlines()
+    assert first[0] == "# Laporan" and "## Ringkasan" in first
+
+
 def test_struct_plain_pdf_text():
     md = ("Laporan Tahunan Perpustakaan 2026\n1. Ringkasan\nPerpustakaan kota melayani 1.240 anggota aktif. Sebagian besar datang pada akhir pekan dan\n"
           "saat libur sekolah.\n2. Analisis Layanan\n| Layanan | Skor | Catatan |\n| --- | --- | --- |\n| Peminjaman | 3,4 | Buku anak paling diminati, |\n"

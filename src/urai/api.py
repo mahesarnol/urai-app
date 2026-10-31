@@ -21,7 +21,7 @@ from . import ai as ai_mod
 from . import export as export_mod
 from . import i18n, info
 from .convert import Item, Options, item_from_link, item_from_path, run_job
-from .errors import Cancelled, friendly_error
+from .errors import Cancelled, error_ref, friendly_error
 from .fileinfo import SUPPORTED_EXT
 from .i18n import t
 from .links import normalize_link
@@ -29,7 +29,8 @@ from .ocr import engine, lang_names, reset_engine
 from .paths import default_output_dir, notices_file, samples_dir, web_dir
 from .settings import Settings, get_key, has_key, set_key
 from .summarize import Summarizer, clean_kind, struct_combined, struct_outline
-from .textutil import base_name, build_combined, safe_filename, unique_path, word_count
+from .textutil import (COMBINED_SEP, base_name, build_combined, combined_section, combined_sections, safe_filename,
+                       unique_path, word_count, write_atomic)
 
 log = logging.getLogger("urai.api")
 
@@ -124,6 +125,8 @@ class Api:
         self._combined_text = ""
         self._combined_path = ""
         self._summary: dict = {}
+        self._combined_edited = False  # file gabungan sudah disunting pengguna; jangan disusun ulang dari hasil per dokumen
+        self._text_gen = 0  # naik setiap pengguna menyunting; rangkuman yang mulai sebelumnya tidak disimpan di cache
         self._mm_cancel = threading.Event()
         self._mm_thread: threading.Thread | None = None
         self._produced: set[str] = set()  # file yang dibuat aplikasi ini; hanya ini yang boleh dibuka dari tampilan
@@ -201,7 +204,7 @@ class Api:
             if self._finished and self._any_supported(paths, from_folder):
                 # hasil sebelumnya masih tampil: dokumen baru memulai daftar baru (hanya bila memang ada yang bisa ditambah)
                 self._items, self._combined_text, self._combined_path, self._summary = [], "", "", {}
-                self._finished, fresh = False, True
+                self._finished, self._combined_edited, fresh = False, False, True
             known = {os.path.normcase(i.source) for i in self._items if not i.is_link}
             for raw in paths or []:
                 if not raw:
@@ -322,6 +325,23 @@ class Api:
             self._items = [i for i in self._items if i.id != item_id]
             return {"ok": True, "items": self._items_public()}
 
+    def remove_items(self, ids: list) -> dict:
+        """Hapus beberapa dokumen dari daftar sekaligus (sebelum atau sesudah diubah). File di disk tidak pernah dihapus."""
+        drop = {str(i) for i in ids if isinstance(i, (str, int))} if isinstance(ids, (list, tuple)) else set()
+        with self._lock:
+            if self._busy():
+                return {"ok": False, "error": t("api.busy_wait")}
+            removed = [i.id for i in self._items if i.id in drop]
+            self._items = [i for i in self._items if i.id not in drop]
+            if not self._items:
+                self._combined_text, self._combined_path, self._summary = "", "", {}
+                self._finished = self._combined_edited = False
+            elif removed:
+                # rangkuman "ALL" dari hasil per dokumen ikut berubah; yang dari file gabungan suntingan tidak
+                prefixes = tuple(f"{r}|" for r in removed) + (() if self._combined_edited else ("ALL|",))
+                self._summary = {k: v for k, v in self._summary.items() if not k.startswith(prefixes)}
+            return {"ok": True, "items": self._items_public()}
+
     def reorder(self, ids: list) -> dict:
         with self._lock:
             if self._busy():
@@ -340,7 +360,7 @@ class Api:
             self._combined_text = ""
             self._combined_path = ""
             self._summary = {}
-            self._finished = False
+            self._finished = self._combined_edited = False
             return {"ok": True, "items": []}
 
     def reset_results(self) -> dict:
@@ -353,7 +373,7 @@ class Api:
             self._combined_text = ""
             self._combined_path = ""
             self._summary = {}
-            self._finished = False
+            self._finished = self._combined_edited = False
             return {"ok": True, "items": self._items_public()}
 
     # ---------- pengaturan ----------
@@ -472,7 +492,7 @@ class Api:
             self._combined_text = ""
             self._combined_path = ""
             self._summary = {}
-            self._finished = False
+            self._finished = self._combined_edited = False
             items = list(self._items)
             self._job = threading.Thread(target=self._run, args=(items, opts, self._cancel), daemon=True, name="urai-job")
             self._job.start()
@@ -514,12 +534,21 @@ class Api:
             opts = self._options()
             if opts.ocr_mode == "off":
                 opts.ocr_mode = "offline"
+            section = None  # bagian dokumen ini di file gabungan yang sudah disunting; "" berarti belum ada
+            if opts.out_mode == "combined" and self._combined_edited:
+                if item.status in ("done", "warn"):
+                    section = next((c for c in combined_sections(item.display_name, item.result) if c in self._combined_text), None)
+                    if section is None:  # bagian ini ikut disunting: membaca ulang akan menimpa suntingan
+                        return {"ok": False, "error": t("edit.reread_conflict")}
+                else:
+                    section = ""
             self._cancel = threading.Event()
-            self._job = threading.Thread(target=self._reread, args=(item, opts, self._cancel), daemon=True, name="urai-reread")
+            self._job = threading.Thread(target=self._reread, args=(item, opts, self._cancel, section), daemon=True,
+                                         name="urai-reread")
             self._job.start()
         return {"ok": True}
 
-    def _reread(self, item: Item, opts: Options, cancel: threading.Event) -> None:
+    def _reread(self, item: Item, opts: Options, cancel: threading.Event, section: str | None = None) -> None:
         old_output = item.output
         try:
             combined = opts.out_mode == "combined"
@@ -551,10 +580,17 @@ class Api:
                 key, item.fix = _empty_message(item, opts)
                 item.say(key)
             if combined:
-                entries = [(i.display_name, i.result) for i in self._items if i.status in ("done", "warn")]
-                self._combined_text = build_combined(entries)
+                if section is None:
+                    entries = [(i.display_name, i.result) for i in self._items if i.status in ("done", "warn")]
+                    self._combined_text = build_combined(entries)
+                else:  # file gabungan sudah disunting: ganti bagian dokumen ini saja, suntingan lain tetap
+                    new = combined_section(item.display_name, item.result)
+                    if section:
+                        self._combined_text = self._combined_text.replace(section, new, 1)
+                    else:
+                        self._combined_text = self._combined_text.rstrip("\n") + COMBINED_SEP + new + "\n"
                 if self._combined_path:
-                    Path(self._combined_path).write_text(self._combined_text, encoding="utf-8")
+                    write_atomic(Path(self._combined_path), self._combined_text)
             elif text:
                 from .convert import _write, output_dir_for
 
@@ -581,6 +617,53 @@ class Api:
             return self._combined_text
         item = next((i for i in self._items if i.id == key), None)
         return item.result if item else ""
+
+    # ---------- menyunting hasil ----------
+    @staticmethod
+    def _write_error(exc: BaseException) -> str:
+        key, kw = error_ref(exc)
+        return t("edit.write_failed") if key == "err.other" else t(key, **kw)
+
+    def save_result(self, key: str, md: str) -> dict:
+        """Simpan Markdown yang disunting pengguna. key = id dokumen (file terpisah) atau "ALL" (file gabungan).
+        File ditulis lewat file sementara lalu diganti sekaligus; bila gagal, file lama tetap utuh."""
+        if not isinstance(md, str):
+            return {"ok": False, "error": t("edit.bad_text")}
+        text = md.replace("\r\n", "\n").strip()
+        with self._lock:
+            if self._busy():
+                return {"ok": False, "error": t("api.busy_wait")}
+            item = None
+            if key == "ALL":
+                if not self._combined_path:
+                    return {"ok": False, "error": t("edit.no_combined")}
+                target = Path(self._combined_path)
+            else:
+                item = next((i for i in self._items if i.id == key), None)
+                if not item:
+                    return {"ok": False, "error": t("api.not_in_list")}
+                if self._combined_path:  # hasil berupa satu file gabungan: yang disunting file itu
+                    return {"ok": False, "error": t("edit.combined_only")}
+                if not item.output:
+                    return {"ok": False, "error": t("edit.no_file")}
+                target = Path(item.output)
+            try:
+                write_atomic(target, text + "\n")
+            except Exception as e:  # noqa: BLE001 - file dikunci, folder hilang, disk penuh
+                log.warning("Simpan suntingan gagal: %s", e)
+                return {"ok": False, "error": self._write_error(e)}
+            self._text_gen += 1
+            if item is None:
+                self._combined_text, self._combined_edited = text + "\n", True
+                words = combined_words = word_count(self._combined_text)
+                stale = ("ALL|",)
+            else:
+                item.result, item.words = text, word_count(text)
+                words, combined_words = item.words, None
+                stale = (f"{item.id}|", "ALL|")
+            self._summary = {k: v for k, v in self._summary.items() if not k.startswith(stale)}
+            return {"ok": True, "items": self._items_public(), "words": words, "combined_words": combined_words,
+                    "name": target.name}
 
     # ---------- membuka file, folder, tautan ----------
     def _allowed(self, path: str) -> bool:
@@ -659,10 +742,14 @@ class Api:
     def _entries(self) -> list[tuple[str, str]]:
         return [(i.display_name, i.result) for i in self._items if i.status in ("done", "warn")]
 
+    @staticmethod
+    def _summary_key(key: str, src: str, kind: str) -> str:
+        return f"{key}|{src}|{clean_kind(kind) if src == 'ai' else '-'}"
+
     def summarize(self, key: str, src: str, kind: str = "poin") -> dict:
         """Mulai membuat rangkuman. Hasilnya dikirim sebagai event 'mm'."""
         kind = clean_kind(kind)
-        cache_key = f"{key}|{src}|{kind if src == 'ai' else '-'}"
+        cache_key = self._summary_key(key, src, kind)
         if cache_key in self._summary:
             self._emit("mm", {"state": "done", "key": key, "src": src, "kind": kind, "md": self._summary[cache_key]})
             return {"ok": True, "cached": True}
@@ -681,26 +768,31 @@ class Api:
             self._mm_cancel.set()
         self._mm_cancel = threading.Event()
         cancel = self._mm_cancel
-        self._mm_thread = threading.Thread(target=self._summarize, args=(key, src, kind, cache_key, cfg, cancel), daemon=True)
+        self._mm_thread = threading.Thread(target=self._summarize, args=(key, src, kind, cache_key, cfg, cancel, self._text_gen),
+                                           daemon=True)
         self._mm_thread.start()
         return {"ok": True}
 
     def _struct(self, key: str) -> str:
         if key == "ALL":
+            if self._combined_edited:  # pakai isi file gabungan yang sudah disunting
+                return struct_outline(self._settings.combined_name(), self._combined_text)
             return struct_combined(self._settings.combined_name(), self._entries())
         item = next((i for i in self._items if i.id == key), None)
         if not item:
             raise LookupError(t("api.not_in_list"))
         return struct_outline(item.display_name, item.result)
 
-    def _summarize(self, key, src, kind, cache_key, cfg, cancel) -> None:
+    def _summarize(self, key, src, kind, cache_key, cfg, cancel, gen: int = 0) -> None:
         def progress(text: str) -> None:
             if not cancel.is_set():
                 self._emit("mm", {"state": "progress", "key": key, "text": text})
 
         try:
             sm = Summarizer(cfg, kind, progress, cancel)
-            if key == "ALL":
+            if key == "ALL" and self._combined_edited:
+                md = sm.one(self._settings.combined_name(), self._combined_text)
+            elif key == "ALL":
                 md = sm.many(self._settings.combined_name(), self._entries())
             else:
                 item = next((i for i in self._items if i.id == key), None)
@@ -709,7 +801,8 @@ class Api:
                 md = sm.one(item.display_name, item.result)
             if cancel.is_set():
                 return
-            self._summary[cache_key] = md
+            if gen == self._text_gen:  # teks atau mind map disunting selama proses: hasil ini sudah usang untuk cache
+                self._summary[cache_key] = md
             self._emit("mm", {"state": "done", "key": key, "src": src, "kind": kind, "md": md})
         except Cancelled:
             return
@@ -723,8 +816,21 @@ class Api:
         return True
 
     def forget_summary(self, key: str, src: str, kind: str = "poin") -> bool:
-        self._summary.pop(f"{key}|{src}|{clean_kind(kind) if src == 'ai' else '-'}", None)
+        self._summary.pop(self._summary_key(key, src, kind), None)
         return True
+
+    def update_summary(self, key: str, src: str, kind: str, md: str) -> dict:
+        """Simpan kerangka mind map yang disunting pengguna. summarize() berikutnya untuk kombinasi yang sama
+        mengembalikannya dari cache."""
+        if src not in ("struct", "ai"):
+            return {"ok": False, "error": t("edit.bad_src")}
+        if not isinstance(md, str) or not md.strip():
+            return {"ok": False, "error": t("edit.empty_map")}
+        if key != "ALL" and not any(i.id == key for i in self._items):
+            return {"ok": False, "error": t("api.not_in_list")}
+        self._text_gen += 1
+        self._summary[self._summary_key(key, src, kind)] = md.replace("\r\n", "\n").strip()
+        return {"ok": True}
 
     def export_map(self, fmt: str, payload: dict) -> dict:
         """Simpan mind map. payload: md, title, style, ai (bool), png (data URL), pdf (opsi kertas)."""

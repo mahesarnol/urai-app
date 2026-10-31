@@ -124,6 +124,16 @@ STRINGS: dict[str, dict[str, str | tuple[str, str]]] = {
         "export.fit": "Fit to screen",
         "export.made_with": "Made with {app}",
         "export.bad_image": "The mind map image is not valid.",
+        # ---------- menyunting hasil ----------
+        "edit.no_file": "This document wasn't saved to a file, so there's nothing to update.",
+        "edit.no_combined": "There's no combined file to save to.",
+        "edit.combined_only": "These results were saved as one combined file. Edit the combined file instead.",
+        "edit.write_failed": "Couldn't save the file. Check that its folder still exists and the disk isn't full.",
+        "edit.bad_text": "The edited text couldn't be read. Try again.",
+        "edit.empty_map": "The mind map is empty.",
+        "edit.bad_src": "Unknown mind map source.",
+        "edit.reread_conflict": ("You edited this document's part of the combined file. Reading it again would replace "
+                                 "your edits, so edit the combined file instead, or convert again."),
         # ---------- error yang mudah dipahami ----------
         "err.auth": "The API key was rejected. Check the API key in Settings.",
         "err.denied": "The AI service denied access. Check the API key and account permissions.",
@@ -258,6 +268,16 @@ STRINGS: dict[str, dict[str, str | tuple[str, str]]] = {
         "export.fit": "Pas di layar",
         "export.made_with": "Dibuat dengan {app}",
         "export.bad_image": "Gambar mind map tidak valid.",
+        # ---------- menyunting hasil ----------
+        "edit.no_file": "Dokumen ini tidak disimpan ke file, jadi tidak ada yang bisa diperbarui.",
+        "edit.no_combined": "Belum ada file gabungan untuk disimpan.",
+        "edit.combined_only": "Hasil ini disimpan sebagai satu file gabungan. Sunting file gabungannya saja.",
+        "edit.write_failed": "File tidak bisa disimpan. Pastikan foldernya masih ada dan disk tidak penuh.",
+        "edit.bad_text": "Teks suntingan tidak terbaca. Coba lagi.",
+        "edit.empty_map": "Mind map kosong.",
+        "edit.bad_src": "Sumber mind map tidak dikenal.",
+        "edit.reread_conflict": ("Anda sudah menyunting bagian dokumen ini di file gabungan. Membacanya ulang akan menimpa "
+                                 "suntingan itu, jadi sunting file gabungannya, atau ubah ulang dari awal."),
         # ---------- error yang mudah dipahami ----------
         "err.auth": "API key ditolak. Periksa API key di Pengaturan.",
         "err.denied": "Akses ditolak oleh layanan AI. Periksa API key dan izin akun.",
@@ -304,6 +324,17 @@ def get_lang() -> str:
 
 def has(key: str) -> bool:
     return key in STRINGS[DEFAULT]
+
+
+def variants(key: str) -> list[str]:
+    """Teks kunci ini dalam semua bahasa (untuk mengenali teks yang ditulis saat bahasa lain aktif)."""
+    out: list[str] = []
+    for lang in LANGS:
+        val = STRINGS[lang][key]
+        for form in val if isinstance(val, tuple) else (val,):
+            if form not in out:
+                out.append(form)
+    return out
 
 
 def fmt_num(x: float, digits: int = 0) -> str:

@@ -82,7 +82,9 @@
     progress: { done: 0, total: 0, current: null },
     texts: {}, pvShown: '',
     pane: 'general', dlg: { provider: 'gemini', typed: {}, models: {}, urls: {} },
-    mm: { src: 'struct', kind: 'poin', view: 'map', busy: false, busyKey: '', busyText: '', cache: {}, style: null },
+    mm: { src: 'struct', kind: 'poin', view: 'map', busy: false, busyKey: '', busyText: '', cache: {}, style: null, edit: false, undo: {} },
+    pick: new Set(),  // baris yang dicentang (pilih banyak); terpisah dari S.sel yang menentukan pratinjau
+    ed: null,         // sedang mengedit hasil: { key, name, base, draft, rev, blk, saving }
   };
   const stateName = () => S.busy ? 'busy' : S.done ? 'done' : (S.items.length ? 'ready' : 'empty');
   const provName = p => (S.providers[p] || {}).name || T('ai.providerFallback');
@@ -109,31 +111,40 @@
     return t;
   }
   const PREVIEW_LIMIT = 250000;
-  function renderMd(md) {
+  // edit = { blk } saat mengedit: tiap blok dibungkus dengan rentang baris sumbernya (data-l="awal,akhir", akhir tidak
+  // termasuk) beserta tombol Edit/Hapus; blok yang sedang diedit diganti kotak teks. Teks sumber tidak pernah dibangun ulang dari HTML.
+  function renderMd(md, edit) {
     let cut = false;
     if (md.length > PREVIEW_LIMIT) { md = md.slice(0, PREVIEW_LIMIT); cut = true; }
     const L = md.split('\n'); let h = '', i = 0, m;
     const block = /^(\s*#{1,6}\s|>|\s*\||\s*[-*+]\s|\s*\d+[.)]\s|---\s*$|\*\*\*\s*$|<!--|```|~~~)/;
+    const tEd = edit ? esc(T('ed.block')) : '', tDel = edit ? esc(T('ed.del')) : '';
+    const wrap = (out, s, e) => {
+      if (edit.blk && edit.blk[0] === s) {
+        return `<div class="eb ebon" data-l="${s},${e}"><div class="ebed"><textarea class="ebta" rows="${Math.min(Math.max(e - s + 1, 3), 18)}" spellcheck="false" aria-label="${esc(T('ed.blockAria'))}"></textarea>` +
+          `<div class="ebacts"><button class="btn sm primary" type="button" data-eb="apply">${T('ed.apply')}</button><button class="btn sm" type="button" data-eb="cancel">${T('cancel')}</button><span class="fhint">${T('ed.keys')}</span></div></div></div>`;
+      }
+      return `<div class="eb" data-l="${s},${e}">${out}<span class="ebact"><button class="ebb" type="button" data-eb="edit" title="${tEd}" aria-label="${tEd}">${ic('edit')}</button>` +
+        `<button class="ebb del" type="button" data-eb="del" title="${tDel}" aria-label="${tDel}">${ic('trash')}</button></span></div>`;
+    };
     while (i < L.length) {
-      const l = L[i];
+      const l = L[i], s = i;
+      let out = '';
       if (!l.trim()) { i++; continue; }
       if (/^\s*(```|~~~)/.test(l)) {
         const fence = l.trim().slice(0, 3), code = []; i++;
         while (i < L.length && !L[i].trim().startsWith(fence)) { code.push(L[i]); i++; }
-        i++; h += `<pre>${esc(code.join('\n'))}</pre>`; continue;
-      }
-      if ((m = l.match(/^\s*<!--\s*(.+?)\s*-->\s*$/))) { h += `<div class="slide">${esc(m[1].replace(/^Slide number:\s*(\S+)/i, (x, n) => T('md.slide', { n })))}</div>`; i++; continue; }
-      if (/^\s*(---|\*\*\*|___)\s*$/.test(l)) { h += '<hr>'; i++; continue; }
-      if ((m = l.match(/^\s*(#{1,6})\s+(.*)$/))) { const n = Math.min(m[1].length, 4); h += `<h${n}>${inline(m[2])}</h${n}>`; i++; continue; }
-      if (l.startsWith('>')) { const q = []; while (i < L.length && L[i].startsWith('>')) { q.push(L[i].replace(/^>\s?/, '')); i++; } h += `<blockquote>${q.filter(x => x.trim()).map(inline).join('<br>')}</blockquote>`; continue; }
-      if (/^\s*\|/.test(l)) {
+        i++; out = `<pre>${esc(code.join('\n'))}</pre>`;
+      } else if ((m = l.match(/^\s*<!--\s*(.+?)\s*-->\s*$/))) { out = `<div class="slide">${esc(m[1].replace(/^Slide number:\s*(\S+)/i, (x, n) => T('md.slide', { n })))}</div>`; i++; }
+      else if (/^\s*(---|\*\*\*|___)\s*$/.test(l)) { out = '<hr>'; i++; }
+      else if ((m = l.match(/^\s*(#{1,6})\s+(.*)$/))) { const n = Math.min(m[1].length, 4); out = `<h${n}>${inline(m[2])}</h${n}>`; i++; }
+      else if (l.startsWith('>')) { const q = []; while (i < L.length && L[i].startsWith('>')) { q.push(L[i].replace(/^>\s?/, '')); i++; } out = `<blockquote>${q.filter(x => x.trim()).map(inline).join('<br>')}</blockquote>`; }
+      else if (/^\s*\|/.test(l)) {
         const rows = []; while (i < L.length && /^\s*\|/.test(L[i])) { rows.push(L[i].trim()); i++; }
         const cells = r => r.replace(/^\||\|$/g, '').split(/(?<!\\)\|/).map(c => c.trim().replace(/\\\|/g, '|'));
         const body = rows.filter(r => !/^\|\s*:?-{2,}/.test(r)); const [hd, ...rs] = body;
-        if (hd) h += `<div class="tbl"><table><thead><tr>${cells(hd).map(c => `<th>${inline(c)}</th>`).join('')}</tr></thead><tbody>${rs.map(r => `<tr>${cells(r).map(c => `<td>${inline(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
-        continue;
-      }
-      if (/^\s*[-*+]\s+/.test(l) || /^\s*\d+[.)]\s+/.test(l)) {
+        if (hd) out = `<div class="tbl"><table><thead><tr>${cells(hd).map(c => `<th>${inline(c)}</th>`).join('')}</tr></thead><tbody>${rs.map(r => `<tr>${cells(r).map(c => `<td>${inline(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+      } else if (/^\s*[-*+]\s+/.test(l) || /^\s*\d+[.)]\s+/.test(l)) {
         const ordered = /^\s*\d+[.)]\s+/.test(l), tag = ordered ? 'ol' : 'ul', re = ordered ? /^\s*\d+[.)]\s+/ : /^\s*[-*+]\s+/;
         const li = [];
         while (i < L.length && re.test(L[i])) {
@@ -141,10 +152,13 @@
           li.push(`<li${ind ? ` style="margin-left:${ind * 1.2}em"` : ''}>${inline(L[i].replace(re, ''))}</li>`); i++;
         }
         const first = ordered ? parseInt(l.match(/^\s*(\d+)/)[1], 10) : 1;
-        h += `<${tag}${first > 1 ? ` start="${first}"` : ''}>${li.join('')}</${tag}>`; continue;
+        out = `<${tag}${first > 1 ? ` start="${first}"` : ''}>${li.join('')}</${tag}>`;
+      } else {
+        const p = []; while (i < L.length && L[i].trim() && (p.length === 0 || !block.test(L[i]))) { p.push(L[i]); i++; }
+        out = `<p>${p.map(inline).join('<br>')}</p>`;
       }
-      const p = []; while (i < L.length && L[i].trim() && (p.length === 0 || !block.test(L[i]))) { p.push(L[i]); i++; }
-      h += `<p>${p.map(inline).join('<br>')}</p>`;
+      // blok terakhir pratinjau yang dipotong tidak utuh, jadi tidak ditawarkan untuk diedit (pakai tab Teks Markdown)
+      if (out) h += edit && !(cut && i >= L.length) ? wrap(out, s, Math.min(i, L.length)) : out;
     }
     if (cut) h += `<blockquote class="cut">${T('pv.cut')}</blockquote>`;
     return h;
@@ -189,17 +203,28 @@
     const click = st === 'done' ? ' click' : '';
     // daftar digambar ulang utuh; simpan dulu tombol yang sedang difokus supaya keyboard tidak kehilangan tempat
     const act = document.activeElement, actRow = act && act.closest ? act.closest('#files .row') : null;
-    const actSel = actRow ? (act.classList.contains('grip') ? '.grip' : act.classList.contains('rm') ? '.rm' : '') : '';
+    const actSel = actRow ? (['grip', 'rm', 'pick'].map(c => act.classList.contains(c) ? '.' + c : '').find(Boolean) || '') : '';
     const actId = actRow ? actRow.dataset.id : '';
-    const gripTip = esc(T('row.grip')), rmTip = esc(T('row.rm'));
+    const gripTip = esc(T('row.grip')), rmTip = esc(T('row.rm')), busy = st === 'busy' ? ' disabled' : '';
     $('#files').innerHTML = S.items.map(it => {
       const sel = st === 'done' && S.sel === it.id ? ' sel' : '';
       return `<li class="row${sel}${click}" data-id="${esc(it.id)}">` +
+        `<input class="pick" type="checkbox" data-pick="${esc(it.id)}" aria-label="${esc(T('list.pickAria', { name: it.display }))}"${S.pick.has(it.id) ? ' checked' : ''}${busy}>` +
         `<button class="grip" type="button" title="${gripTip}" aria-label="${esc(T('row.gripAria', { name: it.display }))}">${ic('grip')}</button>${badgeHTML(it)}` +
         `<span class="ftxt"><span class="nm" title="${esc(it.source)}">${esc(it.display)}</span>${metaHTML(it)}</span>` +
         `${statusHTML(it)}<button class="rm" type="button" data-rm="${esc(it.id)}" aria-label="${esc(T('row.rmAria', { name: it.display }))}" title="${rmTip}">${ic('x')}</button></li>`;
     }).join('');
     if (actSel) { const el = $(`#files .row[data-id="${CSS.escape(actId)}"] ${actSel}`); if (el) el.focus(); }
+  }
+  // bilah pilih banyak: centang "Pilih semua" bisa setengah (sebagian baris dipilih)
+  function renderListBar() {
+    const ids = new Set(S.items.map(i => i.id));
+    [...S.pick].forEach(id => { if (!ids.has(id)) S.pick.delete(id); });
+    const n = S.items.length, k = S.pick.size, all = $('#pickAll');
+    all.checked = n > 0 && k === n; all.indeterminate = k > 0 && k < n; all.disabled = S.busy;
+    $('#pickCount').textContent = k ? T('list.count', { n: k }) : '';
+    $('#rmPicked').disabled = !k || S.busy;
+    $('#clearAll').disabled = !n || S.busy;
   }
   function srcMeta() {
     if (!S.items.length) return T('src.none');
@@ -293,19 +318,39 @@
     $('#pvBody').hidden = isMap;
     $('#mmPanel').hidden = !isMap;
     if (isMap) renderMap(); else renderPreview();
+    syncEdBar();
     const limit = 60000, big = total > limit, sm = $('#sizeMeter');
     sm.className = 'size' + (big ? ' big' : '');
     sm.innerHTML = `<span>${T('size.label')}</span><div class="bar"><i style="--p:${Math.max(3, Math.min(100, total / limit * 100))}%"></i></div><span><b>${T('stat.words', { n: total })}</b> · ${T(big ? 'size.big' : 'size.ok')}</span>`;
     $('#nudge').hidden = !(S.hasQris && (S.set.runs || 0) >= 5 && !S.set.supported);
   }
   async function renderPreview() {
+    const body = $('#pvBody');
+    if (S.ed) {
+      // mode edit: kedua tab memakai draf yang sama; mengetik di tab Teks Markdown tidak menggambar ulang (rev tetap)
+      const sig = `ed|${S.ed.key}|${S.tab}|${S.ed.rev}`;
+      if (sig === S.pvShown) return;
+      const keep = S.pvShown.startsWith(`ed|${S.ed.key}|${S.tab}|`) ? body.scrollTop : 0;
+      S.pvShown = sig;
+      body.classList.toggle('rawedit', S.tab === 'raw');
+      if (S.tab === 'raw') {
+        body.innerHTML = `<textarea class="edta" id="edRaw" spellcheck="false" aria-label="${esc(T('tab.raw'))}"></textarea>`;
+        $('#edRaw').value = S.ed.draft;
+      } else {
+        body.innerHTML = `<div class="md editing">${renderMd(S.ed.draft, { blk: S.ed.blk })}</div>`;
+        const ta = $('.ebta', body);
+        if (ta) { ta.value = S.ed.draft.split('\n').slice(S.ed.blk[0], S.ed.blk[1]).join('\n'); ta.focus(); }
+      }
+      body.scrollTop = keep;
+      return;
+    }
+    body.classList.remove('rawedit');
     const key = currentKey(), item = findItem(key);
     const sig = `${key}|${S.tab}|${item ? item.status + item.words : ''}`;
     if (sig === S.pvShown && S.texts[key] != null) return;
     S.pvShown = sig;
     const md = await textOf(key);
     if (S.pvShown !== sig) return;
-    const body = $('#pvBody');
     if (!md.trim()) {
       const msg = item && item.message ? item.message : T('pv.empty');
       body.innerHTML = `<div class="md"><blockquote>${esc(msg)}</blockquote></div>`;
@@ -336,7 +381,7 @@
     win.dataset.state = st; win.dataset.out = S.set.out_mode || 'separate'; win.dataset.ocr = S.set.ocr_mode || 'offline';
     win.dataset.tess = S.tess.available ? '1' : '0';
     $('#srcMeta').textContent = srcMeta();
-    renderList(); renderSetup(); renderStatus();
+    renderListBar(); renderList(); renderSetup(); renderStatus();
     if (st === 'busy') renderProgress();
     if (st === 'done') renderResult();
   }
@@ -360,7 +405,7 @@
     if (parts.length) toast(parts.join('. '));
     render();
   }
-  function startFresh() { S.done = null; S.sel = null; S.texts = {}; S.pvShown = ''; S.mm.cache = {}; shownMd = null; exitFull(); }
+  function startFresh() { S.done = null; S.sel = null; S.texts = {}; S.pvShown = ''; S.mm.cache = {}; S.mm.undo = {}; S.ed = null; mmEditOff(true); shownMd = null; exitFull(); }
   function handle(e) {
     switch (e.type) {
       case 'items': S.items = e.items; break;
@@ -421,8 +466,9 @@
     S.items.forEach(i => { i.status = 'wait'; i.sub = ''; });
     render();
   }
-  const addFiles = async () => onAdded(await safeCall('pick_files'));
-  const addFolder = async () => { const r = await safeCall('pick_folder'); onAdded(r, r && r.folder ? T('t.folder', { name: r.folder }) : ''); };
+  // di keadaan selesai, menambah dokumen mengganti daftar: perubahan yang belum disimpan ditahan dulu
+  const addFiles = async () => { if (edGuard()) return; onAdded(await safeCall('pick_files')); };
+  const addFolder = async () => { if (edGuard()) return; const r = await safeCall('pick_folder'); onAdded(r, r && r.folder ? T('t.folder', { name: r.folder }) : ''); };
   $('#addFile').addEventListener('click', addFiles);
   $('#dzPick').addEventListener('click', addFiles);
   $('#addFolder').addEventListener('click', addFolder);
@@ -441,10 +487,12 @@
   });
 
   $('#files').addEventListener('click', async e => {
+    if (e.target.closest('.pick')) return;  // kotak centang: ditangani event change, bukan memilih pratinjau
     const rm = e.target.closest('[data-rm]');
-    if (rm) { const r = await safeCall('remove_item', rm.dataset.rm); if (r) { S.items = r.items; render(); } return; }
+    if (rm) { if (edLocks([rm.dataset.rm])) return; const r = await safeCall('remove_item', rm.dataset.rm); if (r) afterRemove(r.items, [rm.dataset.rm]); return; }
     const fix = e.target.closest('[data-fix]');
     if (fix) {
+      if (edLocks([fix.dataset.fix, 'ALL'])) return;
       saveSet({ ocr_mode: 'offline' });
       const r = await safeCall('reread', fix.dataset.fix);
       if (r && r.ok) { S.rereading = fix.dataset.fix; const it = findItem(fix.dataset.fix); if (it) { it.status = 'work'; it.sub = T('t.rereadSub'); } }
@@ -453,8 +501,54 @@
     }
     if (e.target.closest('.grip')) return;
     const row = e.target.closest('.row');
-    if (row && stateName() === 'done') { S.sel = row.dataset.id; S.pvShown = ''; render(); }
+    if (row && stateName() === 'done' && row.dataset.id !== S.sel) {
+      if (edGuard()) return;
+      S.ed = null; S.sel = row.dataset.id; S.pvShown = ''; render();
+    }
   });
+  $('#files').addEventListener('change', e => {
+    const c = e.target.closest('.pick'); if (!c) return;
+    if (c.checked) S.pick.add(c.dataset.pick); else S.pick.delete(c.dataset.pick);
+    renderListBar();
+  });
+
+  /* ---------- pilih banyak: hapus yang dipilih, kosongkan daftar (file di komputer tidak ikut terhapus) ---------- */
+  $('#pickAll').addEventListener('change', e => { S.pick = e.target.checked ? new Set(S.items.map(i => i.id)) : new Set(); render(); });
+  function afterRemove(items, ids) {
+    S.items = items || [];
+    ids.forEach(id => { S.pick.delete(id); delete S.texts[id]; });
+    Object.keys(S.mm.cache).forEach(k => { if (ids.some(id => k.startsWith(id + '|'))) { delete S.mm.cache[k]; delete S.mm.undo[k]; } });
+    if (S.ed && ids.includes(S.ed.key)) S.ed = null;
+    if (!S.items.length) startFresh();
+    else if (S.done && S.sel && !findItem(S.sel)) {
+      // baris yang sedang dipratinjau ikut dihapus: pilih baris lain
+      S.sel = isCombined() ? null : (S.items.find(i => i.status === 'done') || S.items[0]).id;
+      S.pvShown = '';
+    }
+    render();
+  }
+  $('#rmPicked').addEventListener('click', async () => {
+    const ids = S.items.map(i => i.id).filter(id => S.pick.has(id));
+    if (!ids.length || edLocks(ids)) return;
+    const r = await safeCall('remove_items', ids);
+    if (!r) return;
+    if (!r.ok) { toast(r.error || T('err.generic')); return; }
+    afterRemove(r.items, ids);
+    toast(T('list.removed', { n: ids.length }), 3600);
+  });
+  // Kosongkan daftar butuh dua klik: klik pertama mengubah tombol jadi "Klik lagi untuk mengosongkan" selama 3 detik
+  let clearT = 0;
+  function disarmClear() { clearTimeout(clearT); clearT = 0; const b = $('#clearAll'); b.classList.remove('confirm'); setText(b, T('list.clear')); }
+  $('#clearAll').addEventListener('click', () => {
+    if (!clearT) { if (edGuard()) return; const b = $('#clearAll'); b.classList.add('confirm'); setText(b, T('list.clearAgain')); clearT = setTimeout(disarmClear, 3000); return; }
+    disarmClear(); clearList(T('list.cleared'));
+  });
+  async function clearList(msg) {
+    if (edGuard()) return;
+    const r = await safeCall('clear');
+    if (r && r.ok) { S.items = []; S.pick.clear(); startFresh(); render(); if (msg) toast(msg); }
+    else if (r && r.error) toast(r.error);
+  }
 
   $$('.opt[data-out]').forEach(b => b.addEventListener('click', () => {
     if (S.busy) return;
@@ -477,7 +571,10 @@
   $('#go').addEventListener('click', start);
   $('#cancel').addEventListener('click', () => { S.cancelling = true; call('cancel'); render(); });
 
-  $$('.tabs button').forEach(b => b.addEventListener('click', () => { S.tab = b.dataset.tab; S.pvShown = ''; if (S.tab !== 'map') exitFull(); render(); }));
+  $$('.tabs button').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.tab !== 'map' && S.mm.edit) mmEditOff();
+    S.tab = b.dataset.tab; S.pvShown = ''; if (S.tab !== 'map') exitFull(); render();
+  }));
   $('#pvLabel').addEventListener('click', e => { if (e.target.id === 'showAll') { S.sel = null; S.pvShown = ''; render(); } });
   $('#openFile').addEventListener('click', async () => {
     const d = S.done; if (!d) return;
@@ -501,17 +598,93 @@
     toast(T('t.copyFail'));
   }
   $('#copyText').addEventListener('click', async () => {
-    const md = await textOf(currentKey());
+    const md = S.ed && S.ed.key === currentKey() ? S.ed.draft : await textOf(currentKey());
     if (!md) { toast(T('t.nothingToCopy')); return; }
     copyText(md, T('t.copied'));
   });
-  $('#again').addEventListener('click', async () => { const r = await safeCall('clear'); if (r && r.ok) { S.items = []; startFresh(); render(); } });
-  $('#backSetup').addEventListener('click', async () => { const r = await safeCall('reset_results'); if (r && r.ok) { S.items = r.items; startFresh(); render(); } });
+  $('#again').addEventListener('click', () => clearList(''));
+  $('#backSetup').addEventListener('click', async () => { if (edGuard()) return; const r = await safeCall('reset_results'); if (r && r.ok) { S.items = r.items; startFresh(); render(); } });
   $('#toMap').addEventListener('click', () => { S.tab = 'map'; render(); });
+
+  /* ---------- edit hasil di Tampilan dan Teks Markdown ---------- */
+  // yang bisa diedit: mode terpisah = dokumen terpilih yang punya file; mode gabung = seluruh file gabungan saja
+  function edScope() {
+    const d = S.done; if (!d) return null;
+    if (isCombined()) return d.combined_path ? { key: 'ALL', name: fileOf(d.combined_path) } : null;
+    const it = findItem(currentKey()); return it && it.output ? { key: it.id, name: fileOf(it.output) } : null;
+  }
+  const edDirty = () => !!S.ed && S.ed.draft !== S.ed.base;
+  // aksi yang akan membuang draf ditahan dulu, sampai perubahan disimpan atau dibuang
+  function edGuard() { if (!edDirty()) return false; toast(T('ed.blocked'), 3600); return true; }
+  const edLocks = ids => !!S.ed && ids.includes(S.ed.key) && edGuard();
+  function syncEdBar() {
+    const here = !!S.done && S.tab !== 'map', on = !!S.ed && here, dirty = edDirty(), can = !!edScope(), btn = $('#edBtn');
+    btn.hidden = !here || !!S.ed; btn.disabled = !can; btn.title = can ? '' : T('ed.noFile');
+    $('#edBar').hidden = !on;
+    if (!on) return;
+    $('#edBar').classList.toggle('dirty', dirty);
+    $('#edMsg').textContent = dirty ? T('ed.dirty') : T(S.tab === 'raw' ? 'ed.hintRaw' : 'ed.hintView');
+    $('#edDiscard').hidden = !dirty; $('#edSave').hidden = !dirty; $('#edDone').hidden = dirty;
+    $('#edSave').disabled = $('#edDiscard').disabled = !!S.ed.saving;
+  }
+  async function edStart() {
+    if (isCombined() && S.sel) { S.sel = null; S.pvShown = ''; toast(T('ed.whole')); }
+    const sc = edScope(); if (!sc) { toast(T('ed.noFile')); return; }
+    const md = await textOf(sc.key);
+    S.ed = { key: sc.key, name: sc.name, base: md, draft: md, rev: 1, blk: null, saving: false };
+    S.pvShown = ''; render();
+  }
+  function edSetDraft(md, blk = null) { S.ed.draft = md; S.ed.blk = blk; S.ed.rev++; render(); }
+  // ganti baris [s, e) dengan teks baru; bila dihapus, baris kosong ganda yang tersisa dirapikan
+  function spliceLines(md, s, e, text) {
+    const L = md.split('\n'), add = text === '' ? [] : text.replace(/\r\n?/g, '\n').split('\n');
+    L.splice(s, e - s, ...add);
+    if (!add.length && s < L.length && !L[s].trim() && (s === 0 || !L[s - 1].trim())) L.splice(s, 1);
+    return L.join('\n');
+  }
+  async function edSave() {
+    const ed = S.ed; if (!ed || ed.saving || !edDirty()) return;
+    const draft = ed.draft;
+    ed.saving = true; syncEdBar();
+    const r = await safeCall('save_result', ed.key, draft);
+    ed.saving = false;
+    if (r && r.ok) {
+      S.texts = { [ed.key]: draft };  // teks lain dibaca ulang dari Python bila dibutuhkan
+      if (r.items) S.items = r.items;
+      if (S.done && typeof r.combined_words === 'number') S.done.combined_words = r.combined_words;
+      Object.keys(S.mm.cache).forEach(k => { if (k.startsWith(ed.key + '|') || k.startsWith('ALL|')) { delete S.mm.cache[k]; delete S.mm.undo[k]; } });
+      shownMd = null; ed.base = draft;
+      toast(T('ed.saved', { name: r.name || ed.name }));
+    } else if (r) toast(r.error || T('t.saveFail'), 4000);
+    render();
+  }
+  $('#edBtn').addEventListener('click', edStart);
+  $('#edSave').addEventListener('click', edSave);
+  $('#edDiscard').addEventListener('click', () => { if (S.ed) edSetDraft(S.ed.base); });
+  $('#edDone').addEventListener('click', () => { S.ed = null; S.pvShown = ''; render(); });
+  $('#pvBody').addEventListener('input', e => { if (e.target.id === 'edRaw' && S.ed) { S.ed.draft = e.target.value; syncEdBar(); } });
+  $('#pvBody').addEventListener('click', e => {
+    const b = e.target.closest('[data-eb]'); if (!b || !S.ed) return;
+    const [s, en] = b.closest('.eb').dataset.l.split(',').map(Number), act = b.dataset.eb, ta = $('#pvBody .ebta');
+    if (act === 'apply') edSetDraft(spliceLines(S.ed.draft, s, en, ta.value));
+    else if (act === 'cancel') edSetDraft(S.ed.draft);
+    else if (ta) ta.focus();  // satu bagian sekali edit: terapkan atau batalkan dulu yang sedang terbuka
+    else if (act === 'edit') edSetDraft(S.ed.draft, [s, en]);
+    else if (act === 'del') edSetDraft(spliceLines(S.ed.draft, s, en, ''));
+  });
+  $('#pvBody').addEventListener('keydown', e => {
+    if (!e.target.classList.contains('ebta')) return;
+    const go = sel => { e.preventDefault(); e.stopPropagation(); $('#pvBody ' + sel).click(); };
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') go('[data-eb="apply"]');
+    else if (e.key === 'Escape') go('[data-eb="cancel"]');
+  });
 
   document.addEventListener('keydown', e => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && stateName() === 'ready' && !openDialog()) { e.preventDefault(); start(); }
-    if (e.key === 'Escape') { if (openDialog()) closeDialogs(); else if (!$('#mmMenu').hidden) $('#mmMenu').hidden = true; else if (!$('#mmStyle').hidden) closeStyle(); else exitFull(); }
+    const k = (e.ctrlKey || e.metaKey) && !e.altKey ? e.key.toLowerCase() : '';
+    if (k === 's' && S.ed && S.done && !openDialog()) { e.preventDefault(); edSave(); }
+    if (k === 'z' && !e.shiftKey && S.mm.edit && S.tab === 'map' && S.done && !openDialog() && !/^(INPUT|TEXTAREA)$/.test((document.activeElement || {}).tagName || '')) { e.preventDefault(); mmUndo(); }
+    if (e.key === 'Escape') { if (openDialog()) closeDialogs(); else if (!$('#mmMenu').hidden) $('#mmMenu').hidden = true; else if (!$('#mmNodeEd').hidden) closeNodeEd(); else if (!$('#mmStyle').hidden) closeStyle(); else exitFull(); }
   });
 
   /* ---------- atur urutan: seret pegangan, atau panah atas/bawah ---------- */
@@ -776,8 +949,9 @@
   const mmFit = () => { if (MM && mmVisible()) MM.fit(); };
   const fitSoon = () => setTimeout(mmFit, 410);
   const MM_OPTS = { duration: 350, spacingVertical: 8, paddingX: 10, autoFit: false };
-  // HTML mentah dinetralkan, dan tautan dijadikan teks biasa: jendela aplikasi tidak boleh berpindah ke situs lain
-  const safeMd = md => md.replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // HTML mentah dinetralkan, dan tautan dijadikan teks biasa: jendela aplikasi tidak boleh berpindah ke situs lain.
+  // Jumlah baris tidak berubah, supaya nomor baris cabang (payload.lines dari markmap) tetap cocok dengan kerangka aslinya.
+  const safeMd = md => md.replace(/!\[([^\]\n]*)\]\([^)\n]*\)/g, '$1').replace(/\[([^\]\n]+)\]\([^)\n]*\)/g, '$1').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
   function renderMap() {
     const key = mmKey(), it = findItem(key), ai = S.mm.src === 'ai';
@@ -805,9 +979,12 @@
     $('#mmWarn').hidden = S.mm.src !== 'ai';
     $('#mmPlace').hidden = S.mm.src === 'ai';
     $$('#mmView button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.mm.view)));
-    const asText = S.mm.view === 'text';
+    const asText = S.mm.view === 'text', taOn = asText && S.mm.edit, ta = $('#mmTa');
     $('#mmText').innerHTML = renderMd(md);
-    $('#mmText').hidden = !asText;
+    $('#mmText').hidden = !asText || taOn;
+    if (taOn && ta.hidden) ta.value = md;  // diisi saat baru dibuka; ketikan yang belum diterapkan tidak ditimpa
+    ta.hidden = !taOn;
+    syncMmEd();
     $('#mmSvg').style.visibility = asText ? 'hidden' : '';
     if (!window.markmap || !window.markmap.Markmap) { $('#mmText').hidden = false; return; }
     if (!mmVisible()) return;
@@ -834,7 +1011,7 @@
     if (e.state === 'progress') { S.mm.busyText = e.text; if (!$('#mmBusy').hidden) $('#mmBusyText').textContent = e.text; return; }
     if (e.state === 'done') {
       const ck = `${e.key}|${e.src}|${e.src === 'ai' ? e.kind : '-'}`;
-      S.mm.cache[ck] = e.md;
+      S.mm.cache[ck] = e.md; delete S.mm.undo[ck];
       if (S.mm.busyKey === ck) S.mm.busy = false;
     } else if (e.state === 'error') {
       S.mm.busy = false;
@@ -842,10 +1019,122 @@
     }
     if (S.done && S.tab === 'map') renderMap();
   }
+
+  /* ---------- edit mind map: ganti nama atau hapus cabang, atau ubah kerangkanya di tampilan Teks ---------- */
+  // tiap cabang membawa rentang baris sumbernya dari markmap (payload.lines = "awal,akhir"), jadi yang diubah hanya baris itu
+  const HEAD_RE = /^(\s{0,3}#{1,6}\s+)(.*?)(?:\s+#+)?\s*$/, ITEM_RE = /^(\s*(?:[-*+]|\d+[.)])\s+)(.*)$/;
+  const lineText = l => { const m = l.match(HEAD_RE) || l.match(ITEM_RE); return m ? m[2] : l.trim(); };
+  const withText = (l, t) => { const m = l.match(HEAD_RE) || l.match(ITEM_RE); return (m ? m[1] : l.match(/^\s*/)[0]) + t; };
+  // cabang judul berakhir di judul berikutnya yang setingkat atau lebih tinggi; rentang butir daftar sudah mencakup anak-anaknya
+  function branchEnd(L, s, e) {
+    const lv = (L[s].match(/^\s{0,3}(#{1,6})\s/) || [])[1];
+    if (!lv) return e;
+    let j = s + 1;
+    while (j < L.length && !((L[j].match(/^\s{0,3}(#{1,6})\s/) || [, '#######'])[1].length <= lv.length)) j++;
+    return j;
+  }
+  let mmNode = null;  // cabang yang sedang diedit: { s, e, root }
+  const mmTaDirty = () => !$('#mmTa').hidden && $('#mmTa').value !== (S.mm.cache[mmCacheKey()] || '');
+  function syncMmEd() {
+    const on = S.mm.edit, text = S.mm.view === 'text';
+    $('#mmEdit').setAttribute('aria-pressed', String(on));
+    $('#mmEdBar').hidden = !on;
+    $('.mmstage').classList.toggle('editing', on);
+    if (!on) return;
+    $('#mmEdMsg').textContent = T(text ? 'mm.edHintText' : 'mm.edHint');
+    $('#mmApply').hidden = !text; $('#mmApply').disabled = !mmTaDirty();
+    $('#mmUndo').disabled = !(S.mm.undo[mmCacheKey()] || []).length;
+  }
+  // quiet: matikan tanpa menerapkan isi kotak teks (dipakai saat hasil diganti)
+  function mmEditOff(quiet) {
+    closeNodeEd();
+    if (!quiet && mmTaDirty()) mmChange($('#mmTa').value);
+    S.mm.edit = false; $('#mmTa').hidden = true;
+    const md = S.mm.cache[mmCacheKey()];
+    if (!quiet && md && S.done && S.tab === 'map') showMap(md); else syncMmEd();
+  }
+  function mmChange(md) {
+    const ck = mmCacheKey(), old = S.mm.cache[ck];
+    if (old == null || md === old) return;
+    const u = S.mm.undo[ck] = S.mm.undo[ck] || []; u.push(old); if (u.length > 30) u.shift();
+    mmCommit(md);
+  }
+  function mmUndo() { const u = S.mm.undo[mmCacheKey()]; if (!u || !u.length) return; closeNodeEd(); mmCommit(u.pop()); }
+  async function mmCommit(md) {
+    const key = mmKey(), src = S.mm.src, kind = S.mm.kind;
+    S.mm.cache[mmCacheKey()] = md;
+    mmRedraw(md);
+    const r = await safeCall('update_summary', key, src, kind, md);  // ekspor dan pembukaan ulang memakai kerangka yang sudah diedit
+    if (r && r.ok === false) toast(r.error || T('t.saveFail'));
+  }
+  // gambar ulang tanpa mengubah zoom
+  function mmRedraw(md) {
+    $('#mmText').innerHTML = renderMd(md);
+    const ta = $('#mmTa'); if (!ta.hidden && ta.value !== md) ta.value = md;
+    if (MM && mmVisible()) { shownMd = md; MM.setData(transformer().transform(safeMd(md)).root); }
+    else shownMd = null;
+    syncMmEd();
+  }
+  function openNodeEd(g, d, node) {
+    const md = S.mm.cache[mmCacheKey()] || '', ed = $('#mmNodeEd'), inp = $('#mmNodeIn');
+    mmNode = node;
+    inp.value = lineText(md.split('\n')[node.s]);
+    $('#mmRename').disabled = !inp.value.trim();
+    $('#mmDelBranch').hidden = node.root;
+    $('#mmNodeHint').textContent = T(node.root ? 'mm.rootOnly' : 'mm.delHint');
+    ed.hidden = false;
+    // letakkan di bawah cabang (atau di atasnya bila tidak muat), tetap di dalam area mind map
+    const st = $('.mmstage').getBoundingClientRect(), r = g.getBoundingClientRect(), w = ed.offsetWidth, h = ed.offsetHeight;
+    let y = r.bottom - st.top + 6;
+    if (y + h > st.height - 8) y = Math.max(8, r.top - st.top - h - 6);
+    ed.style.left = Math.max(8, Math.min(r.left - st.left, st.width - w - 8)) + 'px'; ed.style.top = y + 'px';
+    inp.focus(); inp.select();
+    if (MM && MM.setHighlight) MM.setHighlight(d);
+  }
+  function closeNodeEd() {
+    if ($('#mmNodeEd').hidden) return;
+    $('#mmNodeEd').hidden = true; mmNode = null;
+    if (MM && MM.setHighlight) MM.setHighlight(null);
+  }
+  $('#mmSvg').addEventListener('click', e => {
+    if (!S.mm.edit || !MM || e.target.closest('circle')) return;  // lingkaran tetap untuk melipat/membuka cabang
+    const g = e.target.closest('g.markmap-node'); if (!g) return;
+    const d = window.d3.select(g).datum(), lines = d && d.payload && d.payload.lines;
+    const [s, en] = String(lines || '').split(',').map(Number), n = (S.mm.cache[mmCacheKey()] || '').split('\n').length;
+    if (!lines || !(s >= 0 && s < n)) { toast(T('mm.noLine'), 3600); return; }
+    openNodeEd(g, d, { s, e: en > s ? en : s + 1, root: d === MM.state.data || !String((d.state || {}).path || '').includes('.') });
+  });
+  $('#mmNodeIn').addEventListener('input', e => { $('#mmRename').disabled = !e.target.value.trim(); });
+  $('#mmRename').addEventListener('click', () => {
+    const n = mmNode, t = $('#mmNodeIn').value.replace(/\s+/g, ' ').trim(); if (!n || !t) return;
+    const L = (S.mm.cache[mmCacheKey()] || '').split('\n'); L[n.s] = withText(L[n.s], t);
+    closeNodeEd(); mmChange(L.join('\n'));
+  });
+  $('#mmDelBranch').addEventListener('click', () => {
+    const n = mmNode; if (!n || n.root) return;
+    const md = S.mm.cache[mmCacheKey()] || '';
+    closeNodeEd(); mmChange(spliceLines(md, n.s, branchEnd(md.split('\n'), n.s, n.e), ''));
+  });
+  $('#mmNodeCancel').addEventListener('click', closeNodeEd);
+  $('#mmNodeEd').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.id === 'mmNodeIn') { e.preventDefault(); $('#mmRename').click(); }
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeNodeEd(); }
+  });
+  $('#mmEdit').addEventListener('click', () => {
+    if (S.mm.edit) { mmEditOff(); return; }
+    S.mm.edit = true;
+    const md = S.mm.cache[mmCacheKey()]; if (md) showMap(md); else syncMmEd();
+  });
+  $('#mmEdDone').addEventListener('click', () => mmEditOff());
+  $('#mmUndo').addEventListener('click', mmUndo);
+  $('#mmApply').addEventListener('click', () => { if (mmTaDirty()) mmChange($('#mmTa').value); });
+  $('#mmTa').addEventListener('input', syncMmEd);
+  $('#mmTa').addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); $('#mmApply').click(); } });
+
   const syncFull = () => { $('#mmFull').textContent = T(win.classList.contains('mmfull') ? 'mm.unfull' : 'mm.full'); };
   function exitFull() {
     if (!win.classList.contains('mmfull')) return;
-    closeStyle(true);
+    closeStyle(true); closeNodeEd();
     win.classList.remove('mmfull'); syncFull();
     requestAnimationFrame(mmFit);
   }
@@ -856,16 +1145,20 @@
   $('#mmStop').addEventListener('click', () => { call('cancel_summary'); S.mm.busy = false; renderMap(); });
   $('#mmRedo').addEventListener('click', () => {
     call('forget_summary', mmKey(), S.mm.src, S.mm.kind);
-    delete S.mm.cache[mmCacheKey()]; shownMd = null; exitFull(); renderMap();
+    mmEditOff(true); delete S.mm.cache[mmCacheKey()]; delete S.mm.undo[mmCacheKey()]; shownMd = null; exitFull(); renderMap();
   });
-  $('#mmView').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.mm.view = b.dataset.v; const md = S.mm.cache[mmCacheKey()]; if (md) showMap(md); });
+  $('#mmView').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    closeNodeEd(); if (mmTaDirty()) mmChange($('#mmTa').value);  // isi kotak teks diterapkan sebelum pindah tampilan
+    S.mm.view = b.dataset.v; const md = S.mm.cache[mmCacheKey()]; if (md) showMap(md);
+  });
   $('#mmIn').addEventListener('click', () => { if (MM && mmVisible()) MM.rescale(1.25); });
   $('#mmOut').addEventListener('click', () => { if (MM && mmVisible()) MM.rescale(0.8); });
   $('#mmFit').addEventListener('click', mmFit);
   $('#mmFold').addEventListener('click', () => { const st = S.mm.style; st.expand = st.expand === -1 ? 2 : -1; applyStyle(true); });
   $('#mmFull').addEventListener('click', () => {
     if (win.classList.contains('mmfull')) { exitFull(); return; }
-    autoFull = false;
+    autoFull = false; closeNodeEd();
     win.classList.add('mmfull'); syncFull();
     requestAnimationFrame(mmFit);
   });
@@ -1104,6 +1397,7 @@
     if (S.mm.style) syncStyleUI();
     syncFull();
     fillApp();
+    disarmClear(); closeNodeEd(); syncMmEd();
     S.pvShown = '';
     if (!$('#dlgSettings').hidden) {
       keepTyped(); buildChips($$('#langChips input:checked').map(i => i.value));

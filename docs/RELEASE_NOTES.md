@@ -2,13 +2,16 @@ Urai App 3.0 is the first version under the new name, with a new interface.
 
 ## What's new
 
-- New interface with a three-step flow: Documents, Output settings, Done. Light and dark themes follow Windows.
+- New interface with a three-step flow: Documents, Choose output, Done.
+- English (default) or Bahasa Indonesia, with a light, dark, or system theme. Change them in **Settings › General**.
 - Drag files or folders anywhere onto the window. Also available from the right-click **Send to** menu.
 - Choose one file per document, or merge everything into one file in an order you can arrange.
+- Select one, several, or all documents to remove them from the list, or clear the list. Files on your computer are never deleted.
+- Edit results directly: change or delete parts in the preview, edit the Markdown text, or rename and delete mind map branches. Edits are saved to the `.md` file.
 - Read scanned PDFs and images offline (Tesseract OCR): Indonesian, English, Javanese, Sundanese, and Arabic. Scanned PDFs are detected automatically.
 - AI mode with your own API key: Claude, Gemini, DeepSeek, OpenAI, OpenRouter, or another server.
-- Mind maps from the document structure (offline) or an AI summary (General, Minutes, Report), which can be saved as PDF (A4, A3, F4), PNG, HTML, or Markdown.
-- About page with the license list, a Guide page, and a Support button.
+- Mind maps from the document structure (offline) or an AI summary (Key points, Minutes, Full summary), which can be saved as PDF (A4, A3, F4), PNG, HTML, or Markdown.
+- About page with the license list, a Help page, and a Support button.
 
 ## Experimental
 

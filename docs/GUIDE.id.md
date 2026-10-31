@@ -4,6 +4,8 @@
 
 Urai App mengubah dokumen menjadi teks Markdown (`.md`): format teks sederhana yang mudah dibaca manusia dan asisten AI. File `.md` bisa dibuka dengan Notepad, dan jauh lebih kecil daripada PDF atau PowerPoint aslinya.
 
+Aplikasi tersedia dalam bahasa Inggris (bawaan) dan Bahasa Indonesia, dengan tema terang, gelap, atau mengikuti Windows. Ubah di **Pengaturan › Umum**; perubahannya langsung berlaku.
+
 ## 1. Tambahkan dokumen
 
 - **Tarik** file atau folder dari File Explorer ke mana saja di jendela Urai App. Lapisan biru muncul saat file berada di atas jendela; lepaskan untuk menambahkan.
@@ -14,7 +16,14 @@ Urai App mengubah dokumen menjadi teks Markdown (`.md`): format teks sederhana y
 
 Format yang didukung: PDF, Word (`.docx`), PowerPoint (`.pptx`), Excel (`.xlsx`, `.xls`), CSV, gambar (JPG, PNG, WEBP, BMP, TIFF), audio (WAV, MP3, M4A, MP4), EPUB, ZIP, HTML, Outlook (`.msg`), dan teks (TXT, JSON, XML).
 
-Setiap baris di daftar menampilkan jenis file, jumlah halaman, slide, atau sheet, dan ukurannya. PDF yang ternyata hasil scan (tidak ada teks yang bisa dipilih) diberi label **Hasil scan**. Untuk menghapus satu dokumen dari daftar, arahkan kursor ke barisnya lalu tekan tanda ×.
+Setiap baris di daftar menampilkan jenis file, jumlah halaman, slide, atau sheet, dan ukurannya. PDF yang ternyata hasil scan (tidak ada teks yang bisa dipilih) diberi label **Hasil scan**.
+
+### Pilih dan hapus dokumen
+
+- Centang kotak di sebuah baris untuk memilihnya, atau **Pilih semua** di atas daftar. Jumlah yang dipilih tampil di bar itu.
+- **Hapus yang dipilih** menghapus baris yang dicentang. **Kosongkan daftar** mengosongkan seluruh daftar; tekan sekali lagi dalam beberapa detik untuk memastikan.
+- Sebelum mengubah, Anda juga bisa mengarahkan kursor ke satu baris lalu menekan tanda × untuk menghapus baris itu saja.
+- Yang dihapus hanya dari daftar. File di komputer, dan hasil yang sudah tersimpan, tidak pernah ikut terhapus.
 
 ## 2. Atur hasil
 
@@ -31,7 +40,7 @@ Setiap baris di daftar menampilkan jenis file, jumlah halaman, slide, atau sheet
 | **Offline** | Hampir semua kebutuhan | Gratis, tanpa internet, dokumen tidak keluar dari komputer. Berjalan di prosesor. |
 | **AI** | Scan buram, tulisan tangan, grafik | Lebih akurat dan bisa menjelaskan isi grafik. Berbayar sesuai pemakaian di akun AI Anda. |
 
-Tekan **Atur** (atau **Pengaturan** di kanan atas) untuk memilih:
+Tekan **Atur** di bawah pilihan mode, atau **Pengaturan › Baca offline**, untuk memilih:
 
 - **Bahasa di dokumen** (mode Offline): Indonesia, Inggris, Jawa, Sunda, Arab. Pilih hanya bahasa yang memang ada; makin sedikit, makin cepat dan tepat.
 - **Ketelitian**: *Cepat* untuk scan yang bersih, *Teliti* untuk scan buram atau foto dari HP (sekitar dua kali lebih lama).
@@ -39,7 +48,7 @@ Tekan **Atur** (atau **Pengaturan** di kanan atas) untuk memilih:
 
 ### Memakai mode AI
 
-1. Buka **Pengaturan › AI (berbayar)**.
+1. Buka **Pengaturan › AI**.
 2. Pilih penyedia, lalu tekan **Buka halaman pembuatan API key** untuk membuat API key di situs penyedia tersebut.
 3. Tempel API key, tekan **Tes koneksi**, lalu **Simpan & pakai mode ini**.
 
@@ -67,17 +76,42 @@ Baris berwarna kuning (**Perlu dicek**) menjelaskan masalahnya di baris itu send
 
 **Ubah dokumen lain** mengosongkan daftar. **Ubah pengaturan, ulangi** kembali ke langkah 2 dengan daftar yang sama.
 
+### Edit hasil
+
+Tekan **Edit** di bar pratinjau. Bar kuning menunjukkan apakah ada perubahan yang belum disimpan.
+
+- Tab **Tampilan**: arahkan kursor ke satu bagian (judul, paragraf, daftar, atau tabel), lalu tekan ikon pensil untuk mengedit teks Markdown-nya, atau ikon tempat sampah untuk menghapusnya. Tekan **Terapkan** (atau Ctrl + Enter) untuk menyimpan perubahan bagian itu, **Batal** (atau Esc) untuk membatalkannya. Hanya bagian yang diubah yang tersentuh; bagian lain tetap persis seperti semula.
+- Tab **Teks Markdown**: ketik langsung di teksnya. **Ctrl + S** menyimpan.
+- **Simpan perubahan** menulis editan ke file `.md`. **Buang perubahan** kembali ke teks terakhir yang tersimpan. **Selesai** keluar dari mode edit.
+- Bila Anda berpindah dokumen atau memulai ulang saat masih ada perubahan yang belum disimpan, aplikasi meminta Anda menyimpan atau membuangnya dulu.
+- Pada **Gabung jadi satu**, yang diedit adalah seluruh file gabungan.
+- Setelah disimpan, mind map dokumen itu dibuat ulang dari teks yang sudah diedit.
+
 ## 4. Mind map
 
 Buka tab **Mind map** di panel hasil (atau tombol **Mind map**).
 
 1. Pilih sumber rangkuman:
    - **Struktur dokumen**: gratis dan offline. Cabang diambil dari judul, subjudul, daftar, dan tabel di dokumen. Hasil terbaik untuk Word dan PowerPoint yang memakai gaya judul.
-   - **Rangkuman AI**: lebih ringkas dan bisa menggabungkan beberapa dokumen. Pilih jenisnya: **Umum** (poin utama), **Notulen** (masalah, keputusan, tindak lanjut), atau **Laporan** (temuan, aktor, rekomendasi). Seluruh teks dokumen dikirim ke penyedia AI; jumlah katanya ditampilkan sebelum Anda menekan tombol. Dokumen yang sangat panjang diringkas bertahap.
+   - **Rangkuman AI**: lebih ringkas dan bisa menggabungkan beberapa dokumen. Pilih jenisnya:
+     - **Poin utama**: inti dokumen dalam beberapa poin singkat.
+     - **Notulen**: informasi pertemuan, pokok bahasan, keputusan, tindak lanjut, dan pertanyaan terbuka. Cocok untuk rapat, wawancara, dan podcast.
+     - **Ringkas lengkap**: semua bagian penting dokumen, sesuai urutannya, ditulis padat.
+
+     Seluruh teks dokumen dikirim ke penyedia AI; jumlah katanya ditampilkan sebelum Anda menekan tombol. Dokumen yang sangat panjang diringkas bertahap. Rangkuman ditulis dalam bahasa aplikasi.
 2. Tekan **Buat mind map** atau **Buat rangkuman AI**.
 3. Di mind map: geser dengan menyeret, perbesar dengan roda mouse atau tombol + dan −, klik lingkaran pada cabang untuk melipat atau membukanya. **Pas** mengembalikan ke ukuran layar, **Lipat** menampilkan cabang utama saja, **Layar penuh** untuk presentasi, **Teks** menampilkan rangkuman sebagai daftar.
 
 Cakupan mind map mengikuti baris yang dipilih. Pada hasil gabungan, pilih **Lihat semua** untuk merangkum seluruh dokumen sekaligus.
+
+### Edit mind map
+
+Tekan tombol pensil di bar alat mind map.
+
+- Klik sebuah cabang untuk membuka editor kecil: ubah teksnya lalu tekan **Ganti nama** (atau Enter), atau tekan **Hapus cabang** untuk menghapusnya beserta semua isi di bawahnya. Judul utama hanya bisa diganti namanya.
+- Di tampilan **Teks**, Anda bisa mengedit seluruh kerangka, lalu menekan **Terapkan perubahan** (atau Ctrl + Enter).
+- **Urungkan** (atau Ctrl + Z) membatalkan perubahan terakhir. **Selesai** keluar dari mode edit.
+- Mind map yang disimpan (PDF, PNG, HTML, Markdown) memakai versi yang sudah Anda edit.
 
 ### Gaya
 
