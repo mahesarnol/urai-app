@@ -1,15 +1,15 @@
-# Catatan perubahan
+# Changelog
 
 ## 3.0.0 (2026)
 
-Versi pertama dengan nama Urai App. Sebelumnya bernama "MarkItDown untuk Windows" (versi 1 dan 2, berbasis Tkinter).
+First version under the Urai App name. Previously called "MarkItDown untuk Windows" (MarkItDown for Windows; versions 1 and 2, based on Tkinter).
 
-- Tampilan baru berbasis web di dalam jendela aplikasi (pywebview + WebView2), mengikuti tema terang/gelap Windows.
-- Tarik-lepas file dan folder, menu **Kirim ke**, urutan daftar bisa diseret.
-- Hasil satu file per dokumen atau digabung jadi satu.
-- Baca scan offline dengan Tesseract OCR yang ikut terpasang (ind, eng, jav, sun, ara); halaman PDF dirender dengan pypdfium2. PyMuPDF (AGPL) tidak lagi dipakai.
-- Deteksi PDF hasil scan dan PDF campuran; teks dari gambar di dalam Word, PowerPoint, dan Excel.
-- Mode AI untuk Claude, Gemini, DeepSeek, OpenAI, OpenRouter, dan server kompatibel OpenAI; API key di Windows Credential Manager.
-- Mind map (markmap, offline): struktur dokumen atau rangkuman AI bertahap untuk dokumen panjang; gaya per sub; simpan sebagai PDF, PNG, HTML, Markdown.
-- Halaman Tentang, Panduan, dan Dukung (QRIS GoPay Merchant).
-- Installer per pengguna (Inno Setup) dan versi portable, dirakit otomatis di GitHub Actions dengan uji mandiri.
+- New web-based interface inside the app window (pywebview + WebView2), following the Windows light/dark theme.
+- Drag and drop for files and folders, a **Send to** menu entry, and a list order you can rearrange by dragging.
+- Output as one file per document or merged into one.
+- Offline scan reading with the bundled Tesseract OCR (ind, eng, jav, sun, ara); PDF pages are rendered with pypdfium2. PyMuPDF (AGPL) is no longer used.
+- Detection of scanned and mixed PDFs; text from images inside Word, PowerPoint, and Excel.
+- AI mode for Claude, Gemini, DeepSeek, OpenAI, OpenRouter, and OpenAI-compatible servers; API keys in Windows Credential Manager.
+- Mind maps (markmap, offline): document structure or staged AI summaries for long documents; per-level styling; save as PDF, PNG, HTML, or Markdown.
+- About, Guide, and Support pages (QRIS GoPay Merchant).
+- Per-user installer (Inno Setup) and portable version, built automatically on GitHub Actions with a self-test.
