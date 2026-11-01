@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "urai-app"
-version = "3.0.0"
+version = "3.1.0"
 description = "Urai dokumen jadi teks Markdown yang rapi: PDF, Word, PowerPoint, Excel, gambar, audio, dan link YouTube."
 readme = "README.md"
 license = { text = "MIT" }

@@ -30,12 +30,12 @@
 ## Download and install
 
 1. Open the **[Releases](../../releases)** page of this repo (or the developer's official Google Drive link).
-2. Download `UraiApp-3.0.0-Setup.exe` and run it. No admin rights are needed; the app is installed for your Windows account only.
+2. Download `UraiApp-3.1.0-Setup.exe` and run it. No admin rights are needed; the app is installed for your Windows account only.
 3. Because the installer is not digitally signed yet, Windows may show **"Windows protected your PC"**. Click **More info › Run anyway**. First make sure the file came from the official page; the SHA-256 hash of every file is listed in `SHA256SUMS.txt`.
 
 Requires Windows 10 or 11 (64-bit) with the Microsoft Edge WebView2 Runtime. WebView2 is already included in Windows 11 and in regularly updated Windows 10; if it is missing, the installer will tell you.
 
-Prefer not to install? Download `UraiApp-3.0.0-portable.zip`, extract it, and run `Urai App.exe`.
+Prefer not to install? Download `UraiApp-3.1.0-portable.zip`, extract it, and run `Urai App.exe`.
 
 **Uninstalling:** Windows Settings › Apps › Installed apps › Urai App › Uninstall. Settings and API keys are stored in `%APPDATA%\UraiApp` and Windows Credential Manager; delete them manually for a completely clean removal.
 
@@ -111,7 +111,7 @@ URAI_E2E=1 python -m pytest tests/test_e2e.py     # end-to-end UI tests in Chrom
 
 ### Building the installer
 
-The installer is built automatically by GitHub Actions ([build.yml](.github/workflows/build.yml)) on every push to `main`; the result can be downloaded from the **Actions** tab as an artifact. When the `v3.0.0` tag is pushed, the installer, the portable version, and `SHA256SUMS.txt` are uploaded to the Releases page automatically. Full steps, including building on your own computer, are in [docs/BUILDING.md](docs/BUILDING.md).
+The installer is built automatically by GitHub Actions ([build.yml](.github/workflows/build.yml)) on every push to `main`; the result can be downloaded from the **Actions** tab as an artifact. When a version tag such as `v3.1.0` is pushed, the installer, the portable version, and `SHA256SUMS.txt` are uploaded to the Releases page automatically. Full steps, including building on your own computer, are in [docs/BUILDING.md](docs/BUILDING.md).
 
 ## License
 

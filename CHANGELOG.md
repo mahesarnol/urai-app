@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 3.1.0 (2026)
 
 - Optional **Accurate (Docling)** PDF engine: much cleaner tables, headings, and paragraphs for PDFs with text. It is a separate one-time download (about 1 GB) that resumes if interrupted, is verified with SHA-256, works offline, and can be removed again. Fully scanned PDFs and other formats keep the standard reader; if the engine fails, the app falls back to the standard reader and notes it on the row.
 - New **Summary** tab before the mind map: AI summaries in three lengths (Short, Medium, Detailed) that can be copied, saved as `.md`, or turned into a mind map with the new **From summary** source (offline, no extra AI call).

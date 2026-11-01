@@ -28,12 +28,12 @@
 ## Unduh dan pasang
 
 1. Buka halaman **[Releases](../../releases)** di repo ini (atau tautan Google Drive resmi dari pengembang).
-2. Unduh `UraiApp-3.0.0-Setup.exe`, lalu jalankan. Tidak perlu hak admin; aplikasi dipasang untuk akun Windows Anda saja.
+2. Unduh `UraiApp-3.1.0-Setup.exe`, lalu jalankan. Tidak perlu hak admin; aplikasi dipasang untuk akun Windows Anda saja.
 3. Karena installer belum ditandatangani secara digital, Windows mungkin menampilkan **"Windows melindungi PC Anda"**. Tekan **Info selengkapnya › Tetap jalankan**. Periksa dulu bahwa file berasal dari halaman resmi; kode SHA-256 setiap file ada di `SHA256SUMS.txt`.
 
 Butuh Windows 10 atau 11 (64-bit) dengan Microsoft Edge WebView2 Runtime. WebView2 sudah ada di Windows 11 dan Windows 10 yang rutin diperbarui; bila belum ada, installer akan memberi tahu.
 
-Tidak ingin memasang? Unduh `UraiApp-3.0.0-portable.zip`, ekstrak, lalu jalankan `Urai App.exe`.
+Tidak ingin memasang? Unduh `UraiApp-3.1.0-portable.zip`, ekstrak, lalu jalankan `Urai App.exe`.
 
 **Menghapus:** Pengaturan Windows › Aplikasi › Aplikasi terinstal › Urai App › Copot. Pengaturan dan API key tersimpan di `%APPDATA%\UraiApp` dan Windows Credential Manager; hapus manual bila ingin bersih sepenuhnya.
 
@@ -109,7 +109,7 @@ URAI_E2E=1 python -m pytest tests/test_e2e.py     # uji tampilan menyeluruh di C
 
 ### Merakit installer
 
-Installer dirakit otomatis oleh GitHub Actions ([build.yml](.github/workflows/build.yml)) di setiap push ke `main`: hasilnya bisa diunduh dari tab **Actions** sebagai artifact. Saat tag `v3.0.0` didorong, installer, versi portable, dan `SHA256SUMS.txt` otomatis diunggah ke halaman Releases. Langkah lengkap, termasuk merakit di komputer sendiri, ada di [docs/BUILDING.id.md](docs/BUILDING.id.md).
+Installer dirakit otomatis oleh GitHub Actions ([build.yml](.github/workflows/build.yml)) di setiap push ke `main`: hasilnya bisa diunduh dari tab **Actions** sebagai artifact. Saat tag versi seperti `v3.1.0` didorong, installer, versi portable, dan `SHA256SUMS.txt` otomatis diunggah ke halaman Releases. Langkah lengkap, termasuk merakit di komputer sendiri, ada di [docs/BUILDING.id.md](docs/BUILDING.id.md).
 
 ## Lisensi
 

@@ -1,24 +1,14 @@
-Urai App 3.0 is the first version under the new name, with a new interface.
+Urai App 3.1 adds summaries, editable AI prompts, and an optional accurate PDF engine.
 
 ## What's new
 
-- New interface with a three-step flow: Documents, Choose output, Done.
-- English (default) or Bahasa Indonesia, with a light, dark, or system theme. Change them in **Settings › General**.
-- Drag files or folders anywhere onto the window. Also available from the right-click **Send to** menu.
-- Choose one file per document, or merge everything into one file in an order you can arrange.
-- Select one, several, or all documents to remove them from the list, or clear the list. Files on your computer are never deleted.
-- Edit results directly: change or delete parts in the preview, edit the Markdown text, or rename and delete mind map branches. Edits are saved to the `.md` file.
-- Read scanned PDFs and images offline (Tesseract OCR): Indonesian, English, Javanese, Sundanese, and Arabic. Scanned PDFs are detected automatically.
-- AI mode with your own API key: Claude, Gemini, DeepSeek, OpenAI, OpenRouter, or another server.
-- Mind maps from the document structure (offline) or an AI summary (Key points, Minutes, Full summary), which can be saved as PDF (A4, A3, F4), PNG, HTML, or Markdown.
-- About page with the license list, a Help page, and a Support button.
-
-## Experimental
-
-YouTube transcripts and speech-to-text for voice recordings. Both depend on third-party services that may change at any time.
+- **Summary tab**: AI summaries in three lengths (Short, Medium, Detailed). Copy them, save them as `.md`, or turn them into a mind map with the new **From summary** source, which works offline without another AI call.
+- **Settings › Prompts**: adjust the instructions the AI follows for each summary length and each mind map type (Key points, Minutes, Full summary). **Reset to default** brings back the original text at any time.
+- **Accurate PDF engine (optional)**: much cleaner tables, headings, and paragraphs for PDFs with text, powered by [Docling](https://github.com/docling-project/docling). Turn it on in **Settings › Offline reading › PDF engine**. It is a one-time download of about 0.8 GB (1.6 GB on disk) that resumes if interrupted, then works offline. It is slower than the standard engine, and fully scanned PDFs still use OCR.
+- Document-structure mind maps no longer drop a heading in some documents.
 
 ## Installing
 
-Download `UraiApp-3.0.0-Setup.exe` below and run it. If "Windows protected your PC" appears, click **More info › Run anyway**. No-install version: `UraiApp-3.0.0-portable.zip`. SHA-256 fingerprints are in `SHA256SUMS.txt`.
+Download `UraiApp-3.1.0-Setup.exe` below and run it. If "Windows protected your PC" appears, click **More info › Run anyway**. No-install version: `UraiApp-3.1.0-portable.zip`. SHA-256 fingerprints are in `SHA256SUMS.txt`.
 
-Older versions of the app (MarkItDown for Windows 1.x/2.x) should be uninstalled first with `Uninstall.bat` in their installation folder.
+Updating from 3.0: install over the old version. Your settings and saved API keys are kept.
