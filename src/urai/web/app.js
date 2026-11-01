@@ -85,6 +85,11 @@
     mm: { src: 'struct', kind: 'poin', view: 'map', busy: false, busyKey: '', busyText: '', cache: {}, style: null, edit: false, undo: {} },
     pick: new Set(),  // baris yang dicentang (pilih banyak); terpisah dari S.sel yang menentukan pratinjau
     ed: null,         // sedang mengedit hasil: { key, name, base, draft, rev, blk, saving }
+    dl: null,         // status mesin PDF akurat (Docling) dari Python; null = fitur tidak tersedia
+    dlWant: false,    // pengguna memilih Akurat sebelum terpasang: aktifkan otomatis setelah unduhan selesai
+    dlAsk: false,     // sedang menampilkan konfirmasi unduhan
+    sum: { kind: 'sedang', cache: {}, busy: false, busyKey: '', busyText: '', shown: '' },  // ringkasan teks; cache per "kunci|panjang"
+    pdef: {},         // instruksi bawaan AI per jenis, dalam bahasa yang sedang dipakai (dari Python)
   };
   const stateName = () => S.busy ? 'busy' : S.done ? 'done' : (S.items.length ? 'ready' : 'empty');
   const provName = p => (S.providers[p] || {}).name || T('ai.providerFallback');
@@ -92,6 +97,10 @@
   const findItem = id => S.items.find(i => i.id === id);
   const isCombined = () => S.set.out_mode === 'combined';
   const combinedName = () => S.set.combined_name || T('combined.default');
+  // mesin PDF akurat hanya dipakai bila dipilih dan sudah terpasang
+  const engOn = () => S.set.pdf_engine === 'docling' && !!(S.dl && S.dl.installed);
+  const engBusy = () => !!S.dl && ['downloading', 'verifying', 'extracting'].includes(S.dl.state);
+  const mbText = mb => mb >= 900 ? (mb / 1024).toLocaleString(LOC(), { maximumFractionDigits: 1 }) + ' GB' : fmt(Math.round(mb)) + ' MB';
   const currentKey = () => (isCombined() && !S.sel) ? 'ALL' : (S.sel || (S.items[0] && S.items[0].id) || '');
 
   function saveSet(patch) {
@@ -179,12 +188,14 @@
   const EXP_TIP = { aud: 'exp.aud', yt: 'exp.yt' };
   function metaHTML(it) {
     if (it.status === 'work' && it.sub) return `<span class="mt work">${esc(it.sub)}</span>`;
+    // catatan dari Python (mis. mesin akurat gagal sehingga dipakai mesin standar) tampil sebagai baris peringatan kecil
+    const note = it.note ? `<span class="mt warn mnote">${ic('alert')}${esc(it.note)}</span>` : '';
     if (it.status === 'warn') {
       const label = T(S.set.ocr_mode === 'off' ? 'fix.enable' : 'fix.reread');
       const fix = it.fix === 'ocr' && !S.busy && !S.rereading ? ` <button class="linkbtn" type="button" data-fix="${esc(it.id)}">${label}</button>` : '';
-      return `<span class="mt warn">${esc(it.message)}${fix}</span>`;
+      return `<span class="mt warn">${esc(it.message)}${fix}</span>${note}`;
     }
-    if (it.status === 'error') return `<span class="mt err">${esc(it.message)}</span>`;
+    if (it.status === 'error') return `<span class="mt err">${esc(it.message)}</span>${note}`;
     let tag = '';
     const mode = S.set.ocr_mode;
     if (it.kind === 'pdf' && (it.scan || it.mixed)) {
@@ -195,8 +206,13 @@
       const t = T({ off: 'tag.imgOff', offline: 'tag.imgOffline', ai: 'tag.imgAi' }[mode]);
       tag = `<span class="tag scan${mode === 'off' ? ' off' : ''}">${ic('image')}${esc(t)}</span>`;
     }
+    // PDF teks/campuran: label Akurat sesuai pengaturan; setelah diubah, sesuai mesin yang benar-benar dipakai
+    if (it.kind === 'pdf' && !it.scan) {
+      const conv = it.status === 'done';
+      if (conv ? it.engine === 'docling' : engOn()) tag += `<span class="tag scan" title="${esc(T(conv ? 'tag.accurateTip' : 'tag.accurateWill'))}">${ic('table')}${T('tag.accurate')}</span>`;
+    }
     if (it.exp) tag += `<span class="tag exp" title="${esc(T(EXP_TIP[it.kind] || 'exp'))}">${T('exp')}</span>`;
-    return `<span class="mt">${esc(it.meta)}${tag}</span>`;
+    return `<span class="mt">${esc(it.meta)}${tag}</span>${note}`;
   }
   function renderList() {
     const st = stateName();
@@ -314,10 +330,11 @@
     const it = findItem(S.sel);
     if (isCombined()) $('#pvLabel').innerHTML = it ? `${T('pv.part', { name: esc(it.display) })} <button class="linkbtn" type="button" id="showAll">${T('pv.all')}</button>` : T('pv.whole');
     else $('#pvLabel').textContent = it ? it.display : '';
-    const isMap = S.tab === 'map';
-    $('#pvBody').hidden = isMap;
+    const isMap = S.tab === 'map', isSum = S.tab === 'sum';
+    $('#pvBody').hidden = isMap || isSum;
     $('#mmPanel').hidden = !isMap;
-    if (isMap) renderMap(); else renderPreview();
+    $('#sumPanel').hidden = !isSum;
+    if (isMap) renderMap(); else if (isSum) renderSum(); else renderPreview();
     syncEdBar();
     const limit = 60000, big = total > limit, sm = $('#sizeMeter');
     sm.className = 'size' + (big ? ' big' : '');
@@ -372,7 +389,10 @@
       busy: () => S.cancelling ? T('sb.cancelling') : T('sb.busy', { i: Math.min(fin + 1, n), n }),
       done: () => T('sb.done', { time: clock(S.done && S.done.at) }),
     }[st]();
-    $('#sbMid').textContent = ocrStatusLabel();
+    // unduhan mesin PDF tetap terlihat di sini walau dialog Pengaturan ditutup
+    const d = S.dl || {}, pct = d.total_mb ? Math.min(100, Math.floor((d.done_mb || 0) / d.total_mb * 100)) : 0;
+    const dl = d.state === 'downloading' ? (d.total_mb ? T('sb.dl', { p: pct }) : T('sb.dlStart')) : engBusy() ? T('sb.dlInstall') : '';
+    $('#sbMid').textContent = [ocrStatusLabel(), engOn() ? T('sb.pdfAccurate') : '', dl].filter(Boolean).join(' · ');
   }
   let rafId = 0;
   function render() { if (!rafId) rafId = requestAnimationFrame(() => { rafId = 0; renderNow(); }); }
@@ -405,7 +425,9 @@
     if (parts.length) toast(parts.join('. '));
     render();
   }
-  function startFresh() { S.done = null; S.sel = null; S.texts = {}; S.pvShown = ''; S.mm.cache = {}; S.mm.undo = {}; S.ed = null; mmEditOff(true); shownMd = null; exitFull(); }
+  function startFresh() { S.done = null; S.sel = null; S.texts = {}; S.pvShown = ''; S.mm.cache = {}; S.mm.undo = {}; S.sum.cache = {}; S.sum.busy = false; S.ed = null; mmEditOff(true); shownMd = null; exitFull(); }
+  // ringkasan teks yang sudah tidak cocok dengan isinya dibuang (Python melakukan hal yang sama)
+  function dropSums(keys) { Object.keys(S.sum.cache).forEach(k => { if (keys.some(id => k.startsWith(id + '|'))) delete S.sum.cache[k]; }); S.sum.shown = ''; }
   function handle(e) {
     switch (e.type) {
       case 'items': S.items = e.items; break;
@@ -437,12 +459,15 @@
         S.rereading = null;
         delete S.texts[e.id]; delete S.texts.ALL; S.pvShown = '';
         Object.keys(S.mm.cache).forEach(k => { if (k.startsWith(e.id + '|') || k.startsWith('ALL|')) delete S.mm.cache[k]; });
+        dropSums([e.id, 'ALL']);
         if (typeof e.combined_words === 'number' && S.done) S.done.combined_words = e.combined_words;
         if (it && e.ok) { if (!isCombined()) S.sel = it.id; toast(T('t.reread', { name: it.display })); }
         else if (it) toast(it.message || T('t.stillUnread'), 3600);
         break;
       }
       case 'mm': onMapEvent(e); return;
+      case 'sum': onSumEvent(e); return;
+      case 'docling': onDocling(e); return;
       default: return;
     }
     render();
@@ -452,7 +477,7 @@
       const evs = await call('poll');
       (evs || []).forEach(e => { try { handle(e); } catch (err) { console.error('event', e && e.type, err); } });
     } catch (err) { console.warn('poll', err); }
-    setTimeout(pollLoop, (S.busy || S.mm.busy || S.rereading) ? 150 : 400);
+    setTimeout(pollLoop, (S.busy || S.mm.busy || S.sum.busy || S.rereading) ? 150 : 400);
   }
 
   /* ---------- aksi utama ---------- */
@@ -518,6 +543,7 @@
     S.items = items || [];
     ids.forEach(id => { S.pick.delete(id); delete S.texts[id]; });
     Object.keys(S.mm.cache).forEach(k => { if (ids.some(id => k.startsWith(id + '|'))) { delete S.mm.cache[k]; delete S.mm.undo[k]; } });
+    dropSums([...ids, 'ALL']);
     if (S.ed && ids.includes(S.ed.key)) S.ed = null;
     if (!S.items.length) startFresh();
     else if (S.done && S.sel && !findItem(S.sel)) {
@@ -618,7 +644,7 @@
   function edGuard() { if (!edDirty()) return false; toast(T('ed.blocked'), 3600); return true; }
   const edLocks = ids => !!S.ed && ids.includes(S.ed.key) && edGuard();
   function syncEdBar() {
-    const here = !!S.done && S.tab !== 'map', on = !!S.ed && here, dirty = edDirty(), can = !!edScope(), btn = $('#edBtn');
+    const here = !!S.done && (S.tab === 'view' || S.tab === 'raw'), on = !!S.ed && here, dirty = edDirty(), can = !!edScope(), btn = $('#edBtn');
     btn.hidden = !here || !!S.ed; btn.disabled = !can; btn.title = can ? '' : T('ed.noFile');
     $('#edBar').hidden = !on;
     if (!on) return;
@@ -653,6 +679,7 @@
       if (r.items) S.items = r.items;
       if (S.done && typeof r.combined_words === 'number') S.done.combined_words = r.combined_words;
       Object.keys(S.mm.cache).forEach(k => { if (k.startsWith(ed.key + '|') || k.startsWith('ALL|')) { delete S.mm.cache[k]; delete S.mm.undo[k]; } });
+      dropSums([ed.key, 'ALL']);
       shownMd = null; ed.base = draft;
       toast(T('ed.saved', { name: r.name || ed.name }));
     } else if (r) toast(r.error || T('t.saveFail'), 4000);
@@ -783,11 +810,12 @@
   // Pengaturan: Umum (bahasa, tema) langsung berlaku; Baca offline dan AI disimpan lewat tombol Simpan
   function setPane(p) {
     S.pane = p;
-    const gen = p === 'general';
+    const gen = p === 'general', pr = p === 'prompts';
     $$('#dTabs button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.pane === p)));
-    $('#pane-general').hidden = !gen; $('#pane-offline').hidden = p !== 'offline'; $('#pane-ai').hidden = p !== 'ai';
-    $('#d-sub').textContent = T(gen ? 'set.subGeneral' : 'set.subScan');
-    $('#dCancel').hidden = gen; $('#dSave').hidden = gen; $('#dDone').hidden = !gen;
+    $('#pane-general').hidden = !gen; $('#pane-offline').hidden = p !== 'offline'; $('#pane-ai').hidden = p !== 'ai'; $('#pane-prompts').hidden = !pr;
+    $('#d-sub').textContent = T(gen ? 'set.subGeneral' : pr ? 'set.subPrompts' : 'set.subScan');
+    // Umum: hanya Selesai; Prompt: Batal + Simpan (hanya prompt); Baca offline/AI: Batal + Simpan & pakai mode ini
+    $('#dCancel').hidden = gen; $('#dSave').hidden = gen || pr; $('#pSave').hidden = !pr; $('#dDone').hidden = !gen;
     $('#dSave').textContent = T(p === S.set.ocr_mode ? 'set.save' : 'set.saveUse');
     setMsg('#testMsg', '');
   }
@@ -835,6 +863,8 @@
     $('#tessMissing').hidden = !!S.tess.available;
     syncGeneral();
     fillProvider();
+    S.dlAsk = false; disarmEngRm(); renderEngine();
+    buildPrompts();
     setPane(pane || (S.set.ocr_mode === 'ai' ? 'ai' : 'offline'));
     openDlg('dlgSettings');
   }
@@ -845,10 +875,16 @@
     const r = await safeCall('set_language', b.dataset.v);
     if (!r) return;
     if (!r.ok) { toast(r.error || T('err.generic')); return; }
+    // isian Prompt yang belum disimpan dipertahankan; yang masih bawaan ikut berganti ke bawaan bahasa baru
+    const typed = promptValues(), oldDef = S.pdef;
     S.set = r.settings || S.set; S.app = r.app || S.app; S.providers = r.providers || S.providers; S.tess = r.tesseract || S.tess;
     if (r.items) S.items = r.items;
+    if (r.prompt_defaults) S.pdef = r.prompt_defaults;
     applyLang(S.set.lang || b.dataset.v);
+    buildPrompts(Object.fromEntries(Object.entries(typed).map(([k, v]) => [k, v.trim() === (oldDef[k] || '').trim() ? pdefOf(k) : v])));
     render();
+    // pesan galat mesin PDF juga diterjemahkan Python: ambil ulang statusnya
+    if (S.dl) call('docling_status').then(d => { if (d) { S.dl = d; renderEngine(); render(); } }).catch(() => {});
   });
   $('#uiTheme').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; saveSet({ theme: b.dataset.v }); applyTheme(); syncGeneral(); });
   $('#qSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) $$('#qSeg button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
@@ -892,6 +928,127 @@
     saveSet(patch);
     closeDialogs(); render();
     toast(S.pane === 'ai' ? T('t.aiOn', { prov: provName(p) }) : T('t.offlineOn'));
+  });
+
+  /* ---------- Pengaturan › Prompt: instruksi AI per panjang ringkasan dan per jenis mind map ---------- */
+  // disimpan dengan tombol Simpan di tab ini; teks yang sama dengan bawaan disimpan kosong (= pakai bawaan)
+  const PROMPT_GROUPS = [['#prSum', ['singkat', 'sedang', 'rinci'], 'sum.'], ['#prMm', ['poin', 'notulen', 'lengkap'], 'kind.']];
+  const pdefOf = k => (S.pdef || {})[k] || '';
+  const prCustom = (k, v) => !!v.trim() && v.trim() !== pdefOf(k).trim();
+  const promptValues = () => Object.fromEntries($$('#pane-prompts .pta').map(t => [t.dataset.pk, t.value]));
+  function buildPrompts(vals) {
+    const saved = S.set.prompts || {};
+    PROMPT_GROUPS.forEach(([sel, kinds, pre]) => {
+      $(sel).innerHTML = kinds.map(k => `<div class="pfield" data-pk="${k}"><div class="prow"><label class="flabel" for="pr-${k}">${T(pre + k)}</label>` +
+        `<span class="tag pcustom" hidden>${T('pr.custom')}</span><span class="gap"></span><button class="linkbtn" type="button" data-reset="${k}">${T('pr.reset')}</button></div>` +
+        `<textarea class="pta" id="pr-${k}" data-pk="${k}" rows="4" spellcheck="false"></textarea></div>`).join('');
+      kinds.forEach(k => { $('#pr-' + k).value = vals && vals[k] != null ? vals[k] : (saved[k] || pdefOf(k)); });
+    });
+    syncPrompts();
+  }
+  function syncPrompts() {
+    $$('#pane-prompts .pfield').forEach(f => {
+      const c = prCustom(f.dataset.pk, $('.pta', f).value);
+      $('.pcustom', f).hidden = !c; $('[data-reset]', f).disabled = !c;
+    });
+  }
+  $('#pane-prompts').addEventListener('input', e => { if (e.target.classList.contains('pta')) syncPrompts(); });
+  $('#pane-prompts').addEventListener('click', e => {
+    const b = e.target.closest('[data-reset]'); if (!b) return;
+    const ta = $('#pr-' + b.dataset.reset); ta.value = pdefOf(b.dataset.reset); syncPrompts(); ta.focus();
+  });
+  $('#pSave').addEventListener('click', () => {
+    const prompts = { ...(S.set.prompts || {}) };
+    Object.entries(promptValues()).forEach(([k, v]) => { prompts[k] = prCustom(k, v) ? v.trim() : ''; });
+    saveSet({ prompts }); closeDialogs(); toast(T('pr.saved'));
+  });
+
+  /* ---------- mesin PDF akurat (Docling): pilih, unduh sekali, hapus ---------- */
+  // Pilihan mesin langsung disimpan (tidak menunggu tombol Simpan), karena unduhan bisa selesai setelah dialog ditutup.
+  let engRmT = 0;
+  function disarmEngRm() { clearTimeout(engRmT); engRmT = 0; }
+  // pilihan Akurat tanpa mesin terpasang (mis. sudah dihapus) kembali ke Standar
+  function engFallback() { if (S.dl && S.set.pdf_engine === 'docling' && !S.dl.installed && !engBusy()) saveSet({ pdf_engine: 'standard' }); }
+  function renderEngine() {
+    const d = S.dl, box = $('#engBox');
+    $('#engField').hidden = !d;
+    if (!d) return;
+    const st = d.state || 'idle', choice = engOn() || S.dlWant || S.dlAsk ? 'docling' : 'standard';
+    $$('#engSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === choice)));
+    const size = mbText(d.total_mb || d.size_mb || 1024);
+    const btn = (act, label, cls = 'btn sm') => `<button class="${cls}" type="button" data-eng="${act}">${label}</button>`;
+    const foc = box.contains(document.activeElement) ? document.activeElement.dataset.eng : '';
+    let h, err = false;
+    if (st === 'downloading') {
+      // total_mb bisa null sampai server memberi tahu ukurannya: tampilkan yang sudah terunduh saja
+      const done = d.done_mb || 0, total = d.total_mb || 0, p = total ? Math.min(100, Math.floor(done / total * 100)) : 0;
+      const prog = total ? T('eng.progress', { done: Math.round(done), total: Math.round(total), p }) : T('eng.mb', { n: Math.round(done) });
+      h = `<div class="engrow"><span class="spin"></span><span>${T('eng.downloading')}</span><span class="pmeta">${prog}</span><span class="gap"></span>${btn('cancel', T('cancel'))}</div>` +
+        `<div class="bar"><i style="--p:${p}%"></i></div><p class="fhint">${T(S.dlWant ? 'eng.willSwitch' : 'eng.background')}</p>`;
+    } else if (st === 'verifying' || st === 'extracting') {
+      h = `<div class="engrow"><span class="spin"></span><span>${T(st === 'verifying' ? 'eng.verifying' : 'eng.extracting')}</span></div>`;
+    } else if (S.dlAsk && !d.installed) {
+      h = `<div class="engrow"><span>${T('eng.ask', { size })}</span></div><div class="engrow">${btn('get', T('eng.askYes'), 'btn sm primary')}${btn('no', T('eng.askNo'))}</div>`;
+    } else if (st === 'error' && !d.installed) {
+      err = true;
+      h = `<div class="engrow">${ic('alert')}<span>${esc(d.error || T('eng.failed'))}</span><span class="gap"></span>${btn('dl', T('eng.retry'))}</div>`;
+    } else if (d.installed) {
+      // d.docling = versi Docling (bisa null); d.engine adalah kode paket mesin, bukan versi, jadi tidak ditampilkan
+      h = `<div class="engrow ok">${ic('checkc')}<span>${[T('eng.installed'), esc('Docling' + (d.docling ? ' ' + d.docling : '')), d.size_mb ? T('eng.mb', { n: Math.round(d.size_mb) }) : ''].filter(Boolean).join(' · ')}</span>` +
+        `<span class="gap"></span><button class="linkbtn" type="button" data-eng="rm">${T(engRmT ? 'eng.removeAgain' : 'eng.remove')}</button></div>`;
+    } else {
+      h = `<div class="engrow"><span>${T('eng.notInstalled')}</span><span class="gap"></span>${btn('dl', T('eng.download', { size }))}</div>`;
+    }
+    box.classList.toggle('err', err);
+    box.innerHTML = h;
+    if (foc) { const el = box.querySelector(`[data-eng="${foc}"]`); if (el) el.focus(); }  // fokus keyboard tidak hilang saat kabar unduhan masuk
+  }
+  function onDocling(e) {
+    const { type, ...st } = e, prev = S.dl || {};
+    S.dl = st;
+    if (st.installed && !prev.installed) {
+      if (S.dlWant) { S.dlWant = false; saveSet({ pdf_engine: 'docling' }); toast(T('eng.readyOn'), 4200); }
+      else toast(T('eng.ready'), 4200);
+    } else if (st.state === 'error' && prev.state !== 'error') toast(T('eng.failToast', { error: st.error || T('eng.failed') }), 5000);
+    engFallback(); renderEngine(); render();
+  }
+  $('#engSeg').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b || !S.dl) return;
+    if (b.dataset.v === 'standard') { S.dlAsk = false; S.dlWant = false; if (S.set.pdf_engine !== 'standard') saveSet({ pdf_engine: 'standard' }); }
+    else if (S.dl.installed) { S.dlAsk = false; saveSet({ pdf_engine: 'docling' }); }
+    else if (engBusy()) S.dlWant = true;  // sudah diunduh: cukup aktifkan setelah selesai
+    else S.dlAsk = true;                  // belum terpasang: minta konfirmasi unduhan dulu
+    renderEngine(); render();
+    $('#engBox').scrollIntoView({ block: 'nearest' });  // kotak status ada di bawah panel; pastikan konfirmasinya terlihat
+  });
+  $('#engBox').addEventListener('click', async e => {
+    const b = e.target.closest('[data-eng]'); if (!b) return;
+    const act = b.dataset.eng;
+    if (act === 'no') { S.dlAsk = false; renderEngine(); return; }
+    if (act === 'get' || act === 'dl') {
+      if (act === 'get') S.dlWant = true;
+      S.dlAsk = false;
+      const before = S.dl, r = await safeCall('docling_download');
+      // tampilkan "mengunduh" segera, kecuali kabar yang lebih baru sudah datang lewat poll
+      if (r && r.ok) { if (S.dl === before) S.dl = { ...S.dl, state: 'downloading', error: '' }; }
+      else { if (r) toast(r.error || T('eng.failed'), 4200); S.dlWant = false; }
+    } else if (act === 'cancel') {
+      S.dlWant = false;
+      const before = S.dl, r = await safeCall('docling_cancel');
+      if (r && r.ok) { if (S.dl === before) S.dl = { ...S.dl, state: 'idle' }; toast(T('eng.paused'), 3600); }
+    } else if (act === 'rm') {
+      // hapus butuh dua klik, seperti Kosongkan daftar
+      if (!engRmT) { engRmT = setTimeout(() => { engRmT = 0; renderEngine(); }, 3000); renderEngine(); return; }
+      disarmEngRm();
+      const was = S.set.pdf_engine === 'docling', r = await safeCall('docling_remove');
+      if (r && r.ok) {
+        if (r.docling) S.dl = r.docling;
+        if (was) saveSet({ pdf_engine: 'standard' });
+        toast(T(was ? 'eng.removedStd' : 'eng.removed'), 4000);
+      } else if (r) toast(r.error || T('err.generic'), 4000);
+    }
+    renderEngine(); render();
+    $('#engBox').scrollIntoView({ block: 'nearest' });
   });
 
   // Dukung
@@ -939,7 +1096,10 @@
   const KIND_LABEL = { poin: 'kind.poin', notulen: 'kind.notulen', lengkap: 'kind.lengkap' };
   const KIND_HINT = { poin: 'kind.poinHint', notulen: 'kind.notulenHint', lengkap: 'kind.lengkapHint' };
   const mmKey = currentKey;
-  const mmCacheKey = () => `${mmKey()}|${S.mm.src}|${S.mm.src === 'ai' ? S.mm.kind : '-'}`;
+  // sumber mind map: struct (struktur dokumen), ai (rangkuman AI, per jenis), sum (dari ringkasan teks, per panjang)
+  const mmArgKind = () => S.mm.src === 'sum' ? S.sum.kind : S.mm.kind;
+  const mmAi = () => S.mm.src !== 'struct';  // isi berasal dari AI: tampilkan peringatan "bisa keliru"
+  const mmCacheKey = () => `${mmKey()}|${S.mm.src}|${S.mm.src === 'struct' ? '-' : mmArgKind()}`;
   const mmTitle = () => { const k = mmKey(); if (k === 'ALL') return combinedName(); const it = findItem(k); return it ? baseName(it.display) : T('mm.title'); };
 
   let MM = null, shownMd = null, TR = null;
@@ -953,20 +1113,27 @@
   // Jumlah baris tidak berubah, supaya nomor baris cabang (payload.lines dari markmap) tetap cocok dengan kerangka aslinya.
   const safeMd = md => md.replace(/!\[([^\]\n]*)\]\([^)\n]*\)/g, '$1').replace(/\[([^\]\n]+)\]\([^)\n]*\)/g, '$1').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+  const docWords = (key, it) => key === 'ALL' ? S.items.reduce((a, i) => a + (i.words || 0), 0) : (it ? it.words : 0);
   function renderMap() {
-    const key = mmKey(), it = findItem(key), ai = S.mm.src === 'ai';
+    const key = mmKey(), it = findItem(key), ai = S.mm.src === 'ai', fromSum = S.mm.src === 'sum';
     $('#mmScope').textContent = key === 'ALL' ? T('mm.scopeAll', { n: S.items.length }) : T('mm.scope', { name: it ? it.display : '-' });
     $$('#mmSetup .opt').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.src === S.mm.src)));
+    // baris jenis: jenis rangkuman AI, atau panjang ringkasan yang dipakai untuk "Dari ringkasan"
+    $('#mmKind').hidden = fromSum; $('#mmSumKind').hidden = !fromSum;
+    $('#mmKindLbl').textContent = T(fromSum ? 'sum.len' : 'mm.kind');
     $$('#mmKind button').forEach(b => { b.setAttribute('aria-pressed', String(b.dataset.k === S.mm.kind)); b.disabled = !ai; });
-    $('#mmKindGrp').classList.toggle('dim', !ai);
-    $('#mmKindHint').textContent = ai ? T(KIND_HINT[S.mm.kind] || 'kind.poinHint') : T('mm.kindAiOnly');
-    const words = key === 'ALL' ? S.items.reduce((a, i) => a + (i.words || 0), 0) : (it ? it.words : 0);
+    $$('#mmSumKind button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === S.sum.kind)));
+    $('#mmKindGrp').classList.toggle('dim', !ai && !fromSum);
+    $('#mmKindHint').textContent = fromSum ? T('mm.sumHint') : ai ? T(KIND_HINT[S.mm.kind] || 'kind.poinHint') : T('mm.kindAiOnly');
+    const words = docWords(key, it), hasSum = S.sum.cache[sumKey(key)] != null, len = esc(sumLabel(S.sum.kind));
     const note = $('#mmNote'), p = S.set.provider;
-    if (ai && !S.keys[p]) { note.className = 'note warn'; note.innerHTML = `${ic('alert')}<span>${T('mm.noteNoKey', { prov: esc(provName(p)), btn: `<button class="linkbtn" type="button" id="mmSetKey">${T('hint.enterKey')}</button>` })}</span>`; }
+    if (fromSum && hasSum) { note.className = 'note ok'; note.innerHTML = `${ic('shield')}<span>${T('mm.sumOk', { len })}</span>`; }
+    else if (fromSum) { note.className = 'note warn'; note.innerHTML = `${ic('alert')}<span>${T('mm.sumNone', { len })} <button class="linkbtn" type="button" id="mmMakeSum">${T('mm.sumFirst')}</button></span>`; }
+    else if (ai && !S.keys[p]) { note.className = 'note warn'; note.innerHTML = `${ic('alert')}<span>${T('mm.noteNoKey', { prov: esc(provName(p)), btn: `<button class="linkbtn" type="button" id="mmSetKey">${T('hint.enterKey')}</button>` })}</span>`; }
     else if (ai) { note.className = 'note warn'; note.innerHTML = `${ic('alert')}<span>${T('mm.noteSend', { words: T('stat.words', { n: words || 0 }), prov: esc(provName(p)) })}</span>`; }
     else { note.className = 'note ok'; note.innerHTML = `${ic('shield')}<span>${T('mm.noteLocal')}</span>`; }
     $('#mmGoText').textContent = T(ai ? 'mm.goAi' : 'mm.goStruct');
-    $('#mmGo').disabled = !words && key !== 'ALL' && !(it && it.status === 'done');
+    $('#mmGo').disabled = fromSum ? !hasSum : (!words && key !== 'ALL' && !(it && it.status === 'done'));
     const ck = mmCacheKey(), md = S.mm.cache[ck], busy = S.mm.busy && S.mm.busyKey === ck;
     $('#mmSetup').hidden = !!md || busy;
     $('#mmBusy').hidden = !busy;
@@ -975,9 +1142,11 @@
     if (md && !busy) requestAnimationFrame(() => showMap(md));
   }
   function showMap(md) {
-    $('#mmSrcTag').innerHTML = S.mm.src === 'ai' ? `${ic('spark')}${T('mm.srcAi', { kind: T(KIND_LABEL[S.mm.kind] || 'kind.poin') })}` : `${ic('grip')}${T('mm.struct')}`;
-    $('#mmWarn').hidden = S.mm.src !== 'ai';
-    $('#mmPlace').hidden = S.mm.src === 'ai';
+    const src = S.mm.src;
+    $('#mmSrcTag').innerHTML = src === 'ai' ? `${ic('spark')}${T('mm.srcAi', { kind: T(KIND_LABEL[S.mm.kind] || 'kind.poin') })}`
+      : src === 'sum' ? `${ic('sum')}${T('mm.sumTag', { len: esc(sumLabel(S.sum.kind)) })}` : `${ic('grip')}${T('mm.struct')}`;
+    $('#mmWarn').hidden = !mmAi();
+    $('#mmPlace').hidden = mmAi();
     $$('#mmView button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.mm.view)));
     const asText = S.mm.view === 'text', taOn = asText && S.mm.edit, ta = $('#mmTa');
     $('#mmText').innerHTML = renderMd(md);
@@ -998,19 +1167,21 @@
   async function genMap() {
     const key = mmKey(), ck = mmCacheKey();
     if (!key) return;
-    S.mm.busy = true; S.mm.busyKey = ck; S.mm.busyText = T(S.mm.src === 'ai' ? 'mm.busyAi' : 'mm.busyStruct');
+    S.mm.busy = true; S.mm.busyKey = ck; S.mm.busyText = T({ ai: 'mm.busyAi', sum: 'mm.busySum' }[S.mm.src] || 'mm.busyStruct');
     saveSet({ mm_src: S.mm.src, mm_kind: S.mm.kind });
     renderMap();
-    const r = await safeCall('summarize', key, S.mm.src, S.mm.kind);
+    const r = await safeCall('summarize', key, S.mm.src, mmArgKind());
     if (!r || !r.ok) {
-      S.mm.busy = false; renderMap();
-      if (r) { toast(r.error, 3800); if (r.open) openSettings(r.open); }
+      S.mm.busy = false;
+      if (r && r.need === 'sum') delete S.sum.cache[sumKey(key)];  // Python belum punya ringkasannya: tampilkan ajakan membuat ringkasan
+      renderMap();
+      if (r) { toast(r.error || T('mm.fail'), 3800); if (r.open) openSettings(r.open); }
     }
   }
   function onMapEvent(e) {
     if (e.state === 'progress') { S.mm.busyText = e.text; if (!$('#mmBusy').hidden) $('#mmBusyText').textContent = e.text; return; }
     if (e.state === 'done') {
-      const ck = `${e.key}|${e.src}|${e.src === 'ai' ? e.kind : '-'}`;
+      const ck = `${e.key}|${e.src}|${e.src === 'struct' ? '-' : e.kind}`;
       S.mm.cache[ck] = e.md; delete S.mm.undo[ck];
       if (S.mm.busyKey === ck) S.mm.busy = false;
     } else if (e.state === 'error') {
@@ -1019,6 +1190,80 @@
     }
     if (S.done && S.tab === 'map') renderMap();
   }
+
+  /* ---------- ringkasan teks (tab Ringkasan): cakupannya sama dengan mind map ---------- */
+  const SUM_KINDS = ['singkat', 'sedang', 'rinci'];
+  const SUM_LABEL = { singkat: 'sum.singkat', sedang: 'sum.sedang', rinci: 'sum.rinci' };
+  const SUM_HINT = { singkat: 'sum.singkatHint', sedang: 'sum.sedangHint', rinci: 'sum.rinciHint' };
+  const sumLabel = k => T(SUM_LABEL[k] || 'sum.sedang');
+  const sumKey = (key = mmKey(), kind = S.sum.kind) => `${key}|${kind}`;
+  function renderSum() {
+    const key = mmKey(), it = findItem(key), p = S.set.provider;
+    $('#sumScope').textContent = key === 'ALL' ? T('mm.scopeAll', { n: S.items.length }) : T('mm.scope', { name: it ? it.display : '-' });
+    $$('#sumKind button, #sumKindBar button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === S.sum.kind)));
+    $('#sumKindHint').textContent = T(SUM_HINT[S.sum.kind] || 'sum.sedangHint');
+    const words = docWords(key, it);
+    $('#sumNote').innerHTML = S.keys[p]
+      ? `${ic('alert')}<span>${T('sum.send', { words: T('stat.words', { n: words || 0 }), prov: esc(provName(p)) })}</span>`
+      : `${ic('alert')}<span>${T('sum.noKey', { prov: esc(provName(p)), btn: `<button class="linkbtn" type="button" id="sumSetKey">${T('hint.enterKey')}</button>` })}</span>`;
+    $('#sumGo').disabled = !words && key !== 'ALL' && !(it && it.status === 'done');
+    const ck = sumKey(key), md = S.sum.cache[ck], busy = S.sum.busy && S.sum.busyKey === ck;
+    $('#sumSetup').hidden = md != null || busy;
+    $('#sumBusy').hidden = !busy;
+    $('#sumBusyText').textContent = S.sum.busyText || T('sum.busy');
+    $('#sumReady').hidden = md == null || busy;
+    if (md == null || busy) return;
+    $('#sumTag').innerHTML = `${ic('spark')}${T('sum.tag', { len: esc(sumLabel(S.sum.kind)) })}`;
+    // gambar ulang hanya bila isinya berubah, supaya posisi gulir tidak kembali ke atas
+    const sig = `${ck}|${md.length}|${S.lang}`;
+    if (S.sum.shown !== sig) { S.sum.shown = sig; $('#sumText').innerHTML = renderMd(md); $('#sumText').scrollTop = 0; }
+  }
+  async function genSum() {
+    const key = mmKey(), kind = S.sum.kind, ck = sumKey(key, kind);
+    if (!key) return;
+    if (!S.keys[S.set.provider]) { openSettings('ai'); return; }
+    S.sum.busy = true; S.sum.busyKey = ck; S.sum.busyText = '';
+    renderSum();
+    const r = await safeCall('summarize_text', key, kind);
+    if (!r || !r.ok) {
+      S.sum.busy = false; renderSum();
+      if (r) { toast(r.error || T('sum.fail'), 3800); if (r.open) openSettings(r.open); }
+    }
+  }
+  function onSumEvent(e) {
+    const ck = `${e.key}|${e.kind}`;
+    if (e.state === 'progress') { S.sum.busyText = e.text || ''; if (!$('#sumBusy').hidden) $('#sumBusyText').textContent = S.sum.busyText || T('sum.busy'); return; }
+    if (e.state === 'done') { S.sum.cache[ck] = e.md || ''; S.sum.shown = ''; if (S.sum.busyKey === ck) S.sum.busy = false; }
+    else if (e.state === 'error') { S.sum.busy = false; toast(e.error || T('sum.fail'), 4200); }
+    if (S.done && (S.tab === 'sum' || S.tab === 'map')) render();
+  }
+  // panjang ringkasan dipilih di tab Ringkasan maupun di pengaturan mind map "Dari ringkasan"; keduanya sama
+  function setSumKind(k) { if (!SUM_KINDS.includes(k) || k === S.sum.kind) return; S.sum.kind = k; saveSet({ sum_kind: k }); render(); }
+  ['#sumKind', '#sumKindBar'].forEach(id => $(id).addEventListener('click', e => { const b = e.target.closest('button'); if (b) setSumKind(b.dataset.k); }));
+  $('#mmSumKind').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setSumKind(b.dataset.k); });
+  $('#sumNote').addEventListener('click', e => { if (e.target.id === 'sumSetKey') openSettings('ai'); });
+  $('#sumGo').addEventListener('click', genSum);
+  $('#sumStop').addEventListener('click', () => { call('cancel_text_summary').catch(() => {}); S.sum.busy = false; renderSum(); });
+  $('#sumRedo').addEventListener('click', () => {
+    const key = mmKey(), kind = S.sum.kind;
+    call('forget_text_summary', key, kind).catch(() => {});
+    delete S.sum.cache[sumKey(key, kind)]; S.sum.shown = '';
+    genSum();
+  });
+  $('#sumCopy').addEventListener('click', () => { const md = S.sum.cache[sumKey()]; if (md) copyText(md, T('sum.copied')); });
+  $('#sumSave').addEventListener('click', async () => {
+    const md = S.sum.cache[sumKey()]; if (md == null) return;
+    const r = await safeCall('export_summary', { md, title: mmTitle(), kind: S.sum.kind });
+    if (r && r.ok) toast(T('t.saved', { name: r.name })); else if (r && !r.cancelled) toast(r.error || T('t.saveFail'));
+  });
+  // mind map dari ringkasan ini: pindah ke tab Mind map dengan sumber "Dari ringkasan" lalu langsung dibuat
+  $('#sumToMap').addEventListener('click', () => {
+    if (S.mm.src !== 'sum' && S.mm.edit) mmEditOff();
+    S.mm.src = 'sum'; S.tab = 'map'; S.pvShown = '';
+    render();
+    if (!S.mm.cache[mmCacheKey()] && !(S.mm.busy && S.mm.busyKey === mmCacheKey())) genMap();
+  });
+  $('#toSum').addEventListener('click', () => { if (S.mm.edit) mmEditOff(); S.tab = 'sum'; exitFull(); render(); });
 
   /* ---------- edit mind map: ganti nama atau hapus cabang, atau ubah kerangkanya di tampilan Teks ---------- */
   // tiap cabang membawa rentang baris sumbernya dari markmap (payload.lines = "awal,akhir"), jadi yang diubah hanya baris itu
@@ -1061,7 +1306,7 @@
   }
   function mmUndo() { const u = S.mm.undo[mmCacheKey()]; if (!u || !u.length) return; closeNodeEd(); mmCommit(u.pop()); }
   async function mmCommit(md) {
-    const key = mmKey(), src = S.mm.src, kind = S.mm.kind;
+    const key = mmKey(), src = S.mm.src, kind = mmArgKind();
     S.mm.cache[mmCacheKey()] = md;
     mmRedraw(md);
     const r = await safeCall('update_summary', key, src, kind, md);  // ekspor dan pembukaan ulang memakai kerangka yang sudah diedit
@@ -1140,11 +1385,14 @@
   }
   $$('#mmSetup .opt').forEach(b => b.addEventListener('click', () => { S.mm.src = b.dataset.src; renderMap(); }));
   $('#mmKind').addEventListener('click', e => { const b = e.target.closest('button'); if (b && !b.disabled) { S.mm.kind = b.dataset.k; renderMap(); } });
-  $('#mmNote').addEventListener('click', e => { if (e.target.id === 'mmSetKey') openSettings('ai'); });
+  $('#mmNote').addEventListener('click', e => {
+    if (e.target.id === 'mmSetKey') openSettings('ai');
+    if (e.target.id === 'mmMakeSum') { S.tab = 'sum'; S.pvShown = ''; render(); }  // ringkasannya belum ada: buat dulu di tab Ringkasan
+  });
   $('#mmGo').addEventListener('click', genMap);
   $('#mmStop').addEventListener('click', () => { call('cancel_summary'); S.mm.busy = false; renderMap(); });
   $('#mmRedo').addEventListener('click', () => {
-    call('forget_summary', mmKey(), S.mm.src, S.mm.kind);
+    call('forget_summary', mmKey(), S.mm.src, mmArgKind());
     mmEditOff(true); delete S.mm.cache[mmCacheKey()]; delete S.mm.undo[mmCacheKey()]; shownMd = null; exitFull(); renderMap();
   });
   $('#mmView').addEventListener('click', e => {
@@ -1170,7 +1418,7 @@
     const f = b.dataset.f, md = S.mm.cache[mmCacheKey()];
     if (!md) return;
     if (f === 'pdf') { openPdf(); return; }
-    const payload = { md, title: mmTitle(), style: S.mm.style, ai: S.mm.src === 'ai' };
+    const payload = { md, title: mmTitle(), style: S.mm.style, ai: mmAi() };
     if (f === 'png') {
       toast(T('mm.pngBusy'));
       try { payload.png = await mmPng(4000); } catch (err) { console.error(err); toast(T('mm.pngFail')); return; }
@@ -1332,7 +1580,7 @@
     if (P.orient === 'port') [w, h] = [h, w];
     const s = Math.min(196 / w, 150 / h), paper = $('#pdfPaper');
     paper.style.width = Math.round(w * s) + 'px'; paper.style.height = Math.round(h * s) + 'px';
-    const ai = S.mm.src === 'ai';
+    const ai = mmAi();
     $('#pdfHead').hidden = !$('#pdfTitle').checked;
     $('#pdfLabelRow').hidden = !ai;
     $('#pdfLbl').hidden = !$('#pdfLabel').checked || !ai;
@@ -1361,7 +1609,7 @@
     let png;
     try { png = await mmPng(P.size === 'A3' ? 6000 : 4500); }
     catch (err) { console.error(err); setMsg('#pdfMsg', T('pdf.imgFail'), 'err'); $('#pdfSave').disabled = false; return; }
-    const r = await safeCall('export_map', 'pdf', { md, title: mmTitle(), style: S.mm.style, ai: S.mm.src === 'ai', png, pdf: P });
+    const r = await safeCall('export_map', 'pdf', { md, title: mmTitle(), style: S.mm.style, ai: mmAi(), png, pdf: P });
     $('#pdfSave').disabled = false;
     if (r && r.ok) { closeDialogs(); toast(T('pdf.saved', { name: r.name })); }
     else if (r && r.cancelled) setMsg('#pdfMsg', '');
@@ -1397,7 +1645,7 @@
     if (S.mm.style) syncStyleUI();
     syncFull();
     fillApp();
-    disarmClear(); closeNodeEd(); syncMmEd();
+    disarmClear(); closeNodeEd(); syncMmEd(); disarmEngRm(); renderEngine();
     S.pvShown = '';
     if (!$('#dlgSettings').hidden) {
       keepTyped(); buildChips($$('#langChips input:checked').map(i => i.value));
@@ -1415,8 +1663,13 @@
     catch (e) { console.error(e); $('#boot').textContent = T('boot.failed'); return; }
     S.app = b.app; S.set = b.settings; S.providers = b.providers; S.models = b.models; S.baseUrls = b.base_urls; S.keys = b.keys;
     S.tess = b.tesseract; S.defaultDir = b.default_dir; S.items = b.items || []; S.hasQris = b.has_qris; S.hasSamples = b.has_samples;
+    S.dl = b.docling || null; engFallback();
     S.mm.src = S.set.mm_src || (S.keys[S.set.provider] ? 'ai' : 'struct');
     S.mm.kind = KINDS.includes(S.set.mm_kind) ? S.set.mm_kind : 'poin';
+    if (!['struct', 'ai', 'sum'].includes(S.mm.src)) S.mm.src = 'struct';
+    S.sum.kind = SUM_KINDS.includes(S.set.sum_kind) ? S.set.sum_kind : 'sedang';
+    S.pdef = b.prompt_defaults || {};
+    $('#dTabs [data-pane=prompts]').hidden = !Object.keys(S.pdef).length;  // Python lama tanpa prompt bawaan: tab disembunyikan
     S.mm.style = loadStyle(S.set.mm_style);
     $('#tryWrap').hidden = !S.hasSamples;
     applyTheme();

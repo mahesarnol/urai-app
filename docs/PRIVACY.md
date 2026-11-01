@@ -19,6 +19,7 @@ Urai App is a free, open-source Windows app that converts documents into Markdow
 | Settings (language, theme, output options, chosen AI provider and model) | `%APPDATA%\UraiApp\settings.json` | Plain text file on your computer. |
 | API keys for AI providers | Windows Credential Manager | Only if Credential Manager is unavailable, keys are stored in `%APPDATA%\UraiApp\keys.json`, readable only by your Windows account. |
 | Log file | `%APPDATA%\UraiApp\logs\urai.log` (up to about 4 MB, older entries are removed automatically) | Contains file names, folder paths, and error messages to help solve problems. It does not contain the contents of your documents. |
+| Accurate PDF engine (only if you download it) | `%LOCALAPPDATA%\UraiApp\engines` | Program files and AI models that run on your computer. Remove it in **Settings › Offline reading**. |
 | Temporary images for offline OCR | Your Windows temporary folder | Deleted right after each page is read. |
 
 ## When data leaves your computer
@@ -28,10 +29,11 @@ Data is only sent when **you** use one of these features:
 | Feature | What is sent | Sent to |
 | --- | --- | --- |
 | **AI mode** (reading scans and images with AI) | Images of the pages or pictures being read, and your API key | The AI provider you chose (for example Anthropic, Google, DeepSeek, OpenAI, OpenRouter, or a server address you entered) |
-| **AI summary** for mind maps | The text of the selected documents, and your API key | The AI provider you chose |
+| **Summary** tab, and **AI summary** mind maps | The text of the selected documents, and your API key | The AI provider you chose |
 | **Test connection** in AI settings | A tiny test image and your API key | The AI provider you chose |
 | **YouTube links and web pages** | A normal request for that page or video transcript | The website itself (for example YouTube) |
 | **Voice recordings** (experimental) | The audio recording | Google's speech recognition service |
+| **Downloading the accurate PDF engine** (only when you choose it) | A normal download request | GitHub (this project's Releases page) |
 | **Check for updates** (only when you press the button) | A request for the latest version number | GitHub (`api.github.com`) |
 | Links to provider pages, the source code, or downloads | Opened in your normal web browser | The website you open |
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Optional **Accurate (Docling)** PDF engine: much cleaner tables, headings, and paragraphs for PDFs with text. It is a separate one-time download (about 1 GB) that resumes if interrupted, is verified with SHA-256, works offline, and can be removed again. Fully scanned PDFs and other formats keep the standard reader; if the engine fails, the app falls back to the standard reader and notes it on the row.
+- New **Summary** tab before the mind map: AI summaries in three lengths (Short, Medium, Detailed) that can be copied, saved as `.md`, or turned into a mind map with the new **From summary** source (offline, no extra AI call).
+- **Settings › Prompts**: edit the AI instructions for each summary length and mind map type, with Reset to default; the output-format and language rules are always added so results still display correctly.
+- The accurate engine is compiled while it installs, so the first conversion afterwards is about four times faster.
+- Document-structure mind maps keep a lone level-1 heading that comes after other headings, and handle the heading style of the accurate engine.
+
 ## 3.0.0 (2026)
 
 First version under the Urai App name. Previously called "MarkItDown untuk Windows" (MarkItDown for Windows; versions 1 and 2, based on Tkinter).

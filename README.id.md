@@ -11,10 +11,12 @@
 - **Tarik dan lepas.** Tarik banyak file atau satu folder penuh ke jendela. Bisa juga klik kanan file di File Explorer, lalu **Kirim ke › Urai App**.
 - **Satu file per dokumen, atau gabung jadi satu.** Urutan isi file gabungan diatur dengan menyeret daftar.
 - **Baca PDF hasil scan dan gambar tanpa internet.** Memakai Tesseract OCR yang ikut terpasang, berjalan di prosesor. Bahasa Indonesia, Inggris, Jawa, Sunda, dan Arab. PDF hasil scan dikenali otomatis.
+- **Mesin PDF akurat (opsional).** Untuk PDF yang banyak tabel, judul, atau tata letaknya rumit, pakai mesin Docling di **Pengaturan › Baca offline**. Sekali unduh sekitar 1 GB, setelah itu bisa dipakai offline. Lebih lambat daripada mesin standar.
 - **Pilih dan hapus.** Centang satu, beberapa, atau semua dokumen untuk menghapusnya dari daftar, atau kosongkan seluruh daftar. File di komputer tidak pernah ikut terhapus.
 - **Edit hasil.** Perbaiki atau hapus bagian mana pun langsung di Tampilan, edit teks Markdown-nya, atau ganti nama dan hapus cabang mind map. Perubahan disimpan ke file `.md`.
 - **Mode AI (opsional).** Pakai API key Anda sendiri dari Claude, Gemini, DeepSeek, OpenAI, OpenRouter, atau server lain yang kompatibel. Lebih akurat untuk scan buram dan bisa menjelaskan grafik.
 - **Baca gambar di dalam Word, PowerPoint, dan Excel**, misalnya grafik atau tabel yang ditempel sebagai gambar.
+- **Ringkasan.** Ringkasan AI dalam tiga panjang (Singkat, Sedang, Rinci), siap disalin atau disimpan sebagai `.md`, dan bisa dijadikan sumber mind map. Instruksi AI untuk ringkasan dan mind map bisa diatur di **Pengaturan › Prompt**.
 - **Mind map.** Ubah hasil menjadi mind map interaktif seperti [markmap](https://markmap.js.org), dari struktur dokumen (gratis, offline) atau rangkuman AI (jenis Poin utama, Notulen, Ringkas lengkap). Warna dan tebal garis bisa diatur per sub. Simpan sebagai PDF siap cetak (A4, A3, F4), PNG, HTML interaktif, atau Markdown.
 - **Eksperimental:** transkrip video YouTube dan rekaman suara ke teks.
 - **Dua bahasa dan tiga tema.** Tampilan berbahasa Inggris (bawaan) atau Indonesia, dengan tema terang, gelap, atau mengikuti Windows. Atur di **Pengaturan › Umum**.
@@ -47,7 +49,7 @@ Panduan lengkap ada di [docs/GUIDE.id.md](docs/GUIDE.id.md).
 
 Urai App tidak mengumpulkan data dan tidak punya server. Dokumen hanya keluar dari komputer Anda bila Anda sendiri memakai:
 
-- **mode AI** atau **Rangkuman AI**: dikirim ke penyedia AI pilihan Anda, memakai API key Anda;
+- **mode AI**, **Ringkasan**, atau mind map **Rangkuman AI**: dikirim ke penyedia AI pilihan Anda, memakai API key Anda;
 - **link YouTube atau halaman web**: diambil langsung dari situsnya;
 - **rekaman suara**: dikirim ke layanan pengenal suara Google.
 

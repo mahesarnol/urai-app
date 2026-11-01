@@ -4,6 +4,7 @@ Jalankan:  URAI_E2E=1 python -m pytest tests/test_e2e.py
 Butuh:     pip install playwright && playwright install chromium, serta Tesseract (ind, eng).
 Tangkapan layar disimpan ke folder yang ditunjuk URAI_E2E_SHOTS (bila diisi).
 """
+import json
 import os
 import threading
 from pathlib import Path
@@ -125,6 +126,54 @@ def test_full_flow(app_url, scheme):
         edited = max((tmp / "exports").glob("*.md"), key=lambda p: p.stat().st_mtime).read_text(encoding="utf-8")
         assert "Cabang uji" not in edited and len(edited.splitlines()) < len(outline.splitlines())
 
+        # tab Ringkasan tanpa API key: catatannya meminta API key, dan Buat ringkasan membuka Pengaturan › AI
+        page.click(".tabs button[data-tab=sum]")
+        page.wait_for_selector("#sumPanel:not([hidden]) #sumSetup:not([hidden])")
+        assert page.get_attribute("#sumKind button[data-k=sedang]", "aria-pressed") == "true"
+        assert "API key" in page.text_content("#sumNote") and page.locator("#sumSetKey").count() == 1
+        page.click("#sumGo")
+        page.wait_for_selector("#pane-ai:not([hidden])")
+        page.keyboard.press("Escape")
+        page.wait_for_selector("#dlgSettings", state="hidden")
+
+        # mind map Dari ringkasan: belum ada ringkasan, jadi diminta membuat ringkasan dulu
+        page.click(".tabs button[data-tab=map]")
+        page.click("#mmRedo")  # kembali ke pilihan sumber
+        page.click("#mmSetup .opt[data-src=sum]")
+        page.wait_for_selector("#mmMakeSum")
+        assert page.is_disabled("#mmGo") and page.is_visible("#mmSumKind") and page.is_hidden("#mmKind")
+        page.click("#mmMakeSum")
+        page.wait_for_selector("#sumPanel:not([hidden])")
+        assert page.get_attribute(".tabs button[data-tab=sum]", "aria-selected") == "true"
+
+        # Pengaturan › Prompt: ubah, tanda Diubah, kembalikan ke bawaan, simpan (tersimpan di settings.json)
+        custom, badge = "Fokus pada angka, tanggal, dan keputusan.", "#pane-prompts [data-pk=sedang] .pcustom"
+        page.click("#btnSettings")
+        page.click("#dTabs button[data-pane=prompts]")
+        page.wait_for_selector("#pane-prompts:not([hidden])")
+        default = page.input_value("#pr-sedang")
+        assert default.strip() and page.is_hidden(badge)
+        page.fill("#pr-sedang", custom)
+        assert page.is_visible(badge)
+        page.click("#pane-prompts [data-reset=sedang]")
+        assert page.input_value("#pr-sedang") == default and page.is_hidden(badge)
+        page.fill("#pr-sedang", custom)
+        page.click("#pSave")
+        page.wait_for_selector("#dlgSettings", state="hidden")
+        page.wait_for_function("document.getElementById('toast').textContent === 'Prompts saved'")
+        for _ in range(20):  # settings.json ditulis Python setelah save_settings
+            saved = json.loads((tmp / "settings.json").read_text(encoding="utf-8"))
+            if (saved.get("prompts") or {}).get("sedang") == custom:
+                break
+            page.wait_for_timeout(100)
+        assert saved["prompts"]["sedang"] == custom
+        page.click("#btnSettings")
+        page.click("#dTabs button[data-pane=prompts]")
+        assert page.input_value("#pr-sedang") == custom and page.is_visible(badge)
+        page.click("#pane-prompts [data-reset=sedang]")
+        page.click("#pSave")  # kembalikan ke bawaan untuk langkah berikutnya
+        page.wait_for_selector("#dlgSettings", state="hidden")
+
         # dialog utama terbuka dan tertutup dengan Escape
         for btn, dlg in (("#btnSettings", "#dlgSettings"), ("#btnAbout", "#dlgAbout"), ("#btnSupport", "#dlgSupport"), ("#btnHelp", "#dlgHelp")):
             page.click(btn)
@@ -149,6 +198,25 @@ def test_full_flow(app_url, scheme):
         shot(page, "4b-settings-id")
         page.click("#uiLang button[data-v=en]")
         page.wait_for_function("document.documentElement.lang === 'en'")
+        page.keyboard.press("Escape")
+        page.wait_for_selector("#dlgSettings", state="hidden")
+
+        # Pengaturan > Baca offline: pilihan mesin PDF; tidak ada unduhan sungguhan (konfirmasi dijawab "Nanti saja")
+        page.click("#btnSettings")
+        page.click("#dTabs button[data-pane=offline]")
+        page.wait_for_selector("#engField:not([hidden])")
+        assert page.text_content("#engSeg").strip() == "Standard (fast)Accurate (Docling)"
+        assert page.get_attribute("#engSeg button[data-v=standard]", "aria-pressed") == "true"
+        if page.locator("#engBox [data-eng=dl]").count():  # mesin akurat belum terpasang di komputer uji
+            assert "installed yet" in page.text_content("#engBox")
+            assert "Download (about" in page.text_content("#engBox [data-eng=dl]")
+            page.click("#engSeg button[data-v=docling]")
+            page.wait_for_selector("#engBox [data-eng=get]")
+            assert "one-time download" in page.text_content("#engBox")
+            page.click("#engBox [data-eng=no]")
+            assert page.get_attribute("#engSeg button[data-v=standard]", "aria-pressed") == "true"
+            assert page.locator("#engBox [data-eng=dl]").count() == 1
+            assert "PDF: accurate" not in page.text_content("#sbMid")
         page.keyboard.press("Escape")
         page.wait_for_selector("#dlgSettings", state="hidden")
 

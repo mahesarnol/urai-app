@@ -73,6 +73,23 @@ def test_struct_reads_ocr_output_in_both_languages():
         assert out == ["# Scan", f"## {page} 1", "- Kopi berasal dari Etiopia.", f"## {page} 2", "- Kopi sampai ke Jawa."]
 
 
+def test_struct_docling_flat_headings():
+    # mesin PDF teliti menulis semua judul sebagai ##, termasuk judul dokumen dan sub-bab bernomor
+    md = ("## Laporan Perpustakaan Kota 2026\n\n## 1. Ringkasan\n\nPengunjung naik 18 persen.\n\n## 2 Layanan\n\n"
+          "## 2.1 Peminjaman\n\n| Kategori | Total |\n|---|---|\n| Fiksi | 4.104 |\n\n## Pojok anak\n\nRamai saat Sabtu.\n\n"
+          "## 3 Rekomendasi\n\n- Menambah ruang baca\n\n## Lampiran\n\nDaftar mitra.")
+    out = struct_outline("tabel-word.pdf", md).splitlines()
+    assert out[0] == "# tabel-word" and "## Laporan Perpustakaan Kota 2026" not in out  # judul dokumen tanpa isi
+    assert out[1:3] == ["## 1. Ringkasan", "- Pengunjung naik 18 persen."]
+    assert "### 2.1 Peminjaman" in out
+    assert "#### Pojok anak" in out  # judul tanpa nomor di bawah sub-bab bernomor
+    assert "#### Fiksi: 4.104" in out  # poin sebelum sub-judul dinaikkan supaya tidak hilang di markmap
+    assert "## 3 Rekomendasi" in out and "## Lampiran" in out
+    # judul pembuka yang punya isi tetap jadi cabang
+    out = struct_outline("x.pdf", "## Abstrak\n\nRingkas.\n\n## 1 Pendahuluan\n\nIsi.").splitlines()
+    assert out[1:3] == ["## Abstrak", "- Ringkas."] and "## 1 Pendahuluan" in out
+
+
 def test_split_chunks_respects_limit():
     text = "\n\n".join(f"## Bagian {i}\n" + ("kata " * 400) for i in range(60))
     chunks = split_chunks(text, limit=5000)
@@ -103,7 +120,7 @@ def test_kinds_and_prompts():
     for lang in ("en", "id"):
         for kind in ("poin", "notulen", "lengkap"):
             assert "{" not in system_prompt(kind, lang) and "{" not in notes_prompt(kind, lang)
-    assert "written in English" in system_prompt("poin", "en") and "Key points" in system_prompt("poin", "en")
+    assert "Write the mind map outline in English" in system_prompt("poin", "en") and "Key points" in system_prompt("poin", "en")
     assert "## Meeting details" in system_prompt("notulen", "en") and '"Not discussed"' in system_prompt("notulen", "en")
     assert "## Conclusion" in system_prompt("lengkap", "en")
     assert "## Informasi pertemuan" in system_prompt("notulen", "id") and '"Tidak dibahas"' in system_prompt("notulen", "id")

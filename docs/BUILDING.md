@@ -56,6 +56,21 @@ Upload `UraiApp-3.0.0-Setup.exe` and `SHA256SUMS.txt` from the Releases page to 
 - **Icon**: `packaging/urai.ico` is still a temporary plain icon (the letter U). Replace it with a logo once the name is safely registered.
 - **SmartScreen warning**: an unsigned installer shows the "Windows protected your PC" warning until enough people have downloaded it. Removing it requires a (paid) code signing certificate. For open-source projects, [SignPath Foundation](https://signpath.org) offers free signing.
 
+## 6. Accurate PDF engine (Docling)
+
+The optional Docling engine is built separately from the app, because it is large (about 0.8 GB zipped) and changes rarely. The workflow [docling-engine.yml](../.github/workflows/docling-engine.yml) builds it when a `docling-engine-v*` tag is pushed, tests it on a sample PDF, and attaches `UraiDocling-1-windows-x64.zip` and `SHA256SUMS.txt` to that release. The app downloads it from the `docling-engine-v1` release and checks the SHA-256 before installing.
+
+First time:
+
+```bash
+git tag docling-engine-v1
+git push origin docling-engine-v1
+```
+
+Rebuild only when the worker (`packaging/docling/worker.py`) or the Docling version (`DOCLING_VERSION` in `packaging/docling/build_engine.py`) changes. For a change that older app versions can't use, raise `ENGINE_VERSION` in `worker.py` and `ENGINE` in `src/urai/docling_engine.py`, update the asset name in the workflow, and push a new tag (for example `docling-engine-v2`).
+
+To build it on your own computer: `python packaging/docling/build_engine.py --out build/docling --zip dist/UraiDocling-1-windows-x64.zip` (needs [uv](https://docs.astral.sh/uv/) and about 2.5 GB of free space). Keep the output outside OneDrive or other synced folders.
+
 ## Building on your own computer (optional)
 
 On Windows 10/11 with Python 3.12, Inno Setup 6, and Tesseract (from Chocolatey or the UB Mannheim installer):

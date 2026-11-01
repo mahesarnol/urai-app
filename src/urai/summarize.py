@@ -12,7 +12,9 @@ from .textutil import base_name
 
 Progress = Callable[[str], None]
 
-KINDS = ("poin", "notulen", "lengkap")         # jenis rangkuman AI; nama tampilannya diatur tampilan
+KINDS = ("poin", "notulen", "lengkap")         # jenis mind map AI; nama tampilannya diatur tampilan
+SUM_KINDS = ("singkat", "sedang", "rinci")    # jenis rangkuman teks (tab Rangkuman)
+PROMPT_KINDS = KINDS + SUM_KINDS              # jenis yang instruksinya bisa disunting pengguna
 LEGACY_KINDS = {"umum": "poin", "laporan": "lengkap"}  # nilai lama di pengaturan
 
 
@@ -76,12 +78,32 @@ def promote_orphans(md: str) -> str:
     return "\n".join(out)
 
 
-def struct_outline(title: str, md: str, nested: bool = False) -> str:
+def _flat_title_index(lines: list[str]) -> int | None:
+    """Baris judul pembuka yang sebenarnya judul dokumen: judul pertama, belum ada isi sebelumnya,
+    tidak bernomor, dan langsung disusul judul lain."""
+    content = [(i, l.strip()) for i, l in enumerate(lines)
+               if l.strip() and not l.strip().startswith(("<!--", ">")) and not re.fullmatch(r"[-*_]{3,}", l.strip())]
+    if len(content) < 2:
+        return None
+    (i, first), (_, second) = content[0], content[1]
+    m = re.match(r"^#{1,6}\s+(.*)$", first)
+    if not m or _NUM_HEAD.match(_inline_text(m.group(1))) or not re.match(r"^#{1,6}\s+\S", second):
+        return None
+    return i
+
+
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[\"'(\[]?[A-Z0-9À-ɏ])")
+_LABEL_LINE = re.compile(r"^(?:(\*\*|__)(.+?)\1:?|([^.!?]{2,60}):)$")  # "**Poin penting**" atau "Poin penting:"
+
+
+def struct_outline(title: str, md: str, nested: bool = False, sentences: bool = False) -> str:
     """Kerangka mind map dari judul, daftar, dan tabel di dokumen, tanpa internet.
 
     Dokumen dengan beberapa judul tingkat 1 (Word, PowerPoint) memakai judul itu sebagai cabang utama.
     Untuk teks tanpa tanda judul sama sekali (mis. PDF), judul bernomor seperti "2. Analisis" dan baris
     berhuruf kapital dianggap judul, dan baris yang terpotong di tengah kalimat digabung lagi.
+    sentences=True (mind map dari rangkuman teks): setiap kalimat paragraf jadi satu poin, bukan hanya kalimat
+    pertama, dan baris label seperti "**Poin penting**" atau "Poin penting:" jadi cabang.
     """
     name = base_name(title)
     shift = 1 if nested else 0
@@ -92,13 +114,18 @@ def struct_outline(title: str, md: str, nested: bool = False) -> str:
     # Beberapa judul tingkat 1 berarti itu bab, bukan judul dokumen. Satu judul tingkat 1 hanya dianggap
     # judul dokumen bila ia judul pertama; bila muncul setelah judul lain, ia bab dan tidak boleh hilang.
     md_shift = 1 if h1_count >= 2 or (h1_count == 1 and heads[0] != 1) else 0
+    # Mesin PDF teliti (Docling) menulis semua judul di satu tingkat (##), termasuk judul dokumen dan sub-bab.
+    # Tingkat sebenarnya diambil dari nomornya ("3.1 ..."), dan judul pembuka tanpa isi dianggap judul dokumen.
+    flat = len(heads) >= 2 and len(set(heads)) == 1 and heads[0] >= 2
+    title_at = _flat_title_index(lines) if flat else None
+    num_depth = 0          # kedalaman judul bernomor terakhir (mode flat)
     nodes: list[list] = []  # [jenis, teks]; jenis: h<level> | item | para
     in_code = False
     table = False          # sedang di dalam (atau di sela-sela potongan) tabel
     last = None            # jenis node terakhir yang masih bisa disambung
     prev_len = 0
     seen_text = False
-    for raw in lines:
+    for idx, raw in enumerate(lines):
         line = raw.strip()
         if line.startswith("```") or line.startswith("~~~"):
             in_code = not in_code
@@ -114,6 +141,16 @@ def struct_outline(title: str, md: str, nested: bool = False) -> str:
         m = re.match(r"^(#{1,6})\s+(.*)$", line)
         if m:
             level, text = len(m.group(1)) + md_shift, _inline_text(m.group(2))
+            if flat:
+                if idx == title_at or (not seen_text and text.lower() == name.lower()):
+                    last, table, seen_text = None, False, True
+                    continue
+                num = _NUM_HEAD.match(text)
+                if num:
+                    num_depth = num.group(1).count(".") + 1
+                    level = 1 + num_depth
+                else:  # judul tanpa nomor di bawah sub-bab bernomor ("3.2 ...") adalah bagiannya
+                    level = num_depth + 2 if num_depth >= 2 else 2
             if level > 1 and text:
                 nodes.append([f"h{min(6, level + shift)}", _short(text, 120)])
             last, table, seen_text = None, False, True
@@ -132,6 +169,10 @@ def struct_outline(title: str, md: str, nested: bool = False) -> str:
             continue
         if re.fullmatch(r"!?\[.*\]\(.*\)", line):
             continue  # baris yang hanya berisi gambar atau tautan
+        if sentences and (lm := _LABEL_LINE.match(line)) and not _BULLET.match(line):
+            nodes.append([f"h{2 + shift}", _short(_inline_text(lm.group(2) or lm.group(3)), 120)])
+            last, table, seen_text = None, False, True
+            continue
         plain = _inline_text(line)
         if not plain:
             continue
@@ -172,6 +213,8 @@ def struct_outline(title: str, md: str, nested: bool = False) -> str:
             out.append("#" * int(kind[1:]) + " " + text)
         elif kind == "item":
             out.append("- " + _short(text, 120))
+        elif sentences:
+            out.extend("- " + _short(s, 120) for s in _SENTENCE_SPLIT.split(re.sub(r"\s+", " ", text).strip()) if s)
         else:
             out.append("- " + _first_sentence(text))
     if len(out) == 1:
@@ -186,36 +229,38 @@ def struct_combined(name: str, entries: list[tuple[str, str]]) -> str:
 
 # ---------- rangkuman AI ----------
 
-# Perintah ke AI dalam bahasa aplikasi. Perintah sistem = kepala + aturan kesetiaan (dipakai bersama oleh
-# rangkuman dan catatan) + bentuk keluaran + aturan per jenis. Aturan per jenis memegang batas cabang,
-# tingkat, dan panjang poin. {out} diisi kata "rangkuman" atau "catatan".
+# Perintah ke AI = instruksi per jenis (bisa disunting pengguna di Pengaturan) + aturan tetap yang selalu
+# ditambahkan aplikasi: bahasa keluaran (bahasa aplikasi) dan bentuk teknis keluarannya. Catatan potongan untuk
+# dokumen panjang memakai perintah internal yang tidak bisa disunting. {out} diisi kata "rangkuman" atau "catatan".
+_FAITHFUL_EN = (
+    "- Only include what is actually in the document. Do not add data, numbers, names, dates, opinions, "
+    "or conclusions that are not written there.\n"
+    "- Keep numbers, dates, units, terms, and names exactly as in the document.\n"
+    "- Ignore content that is not part of the substance, such as ads, subscribe prompts, promotional contacts, "
+    "social media links, and keyword lists."
+)
+_FAITHFUL_ID = (
+    "- Tulis hanya hal yang benar-benar ada di dokumen. Jangan menambah data, angka, nama, tanggal, pendapat, "
+    "atau kesimpulan yang tidak tertulis.\n"
+    "- Pertahankan angka, tanggal, satuan, istilah, dan nama persis seperti di dokumen.\n"
+    "- Abaikan bagian yang bukan isi, seperti iklan, ajakan berlangganan, kontak promosi, tautan media sosial, "
+    "dan daftar kata kunci."
+)
+_SUM_FAITHFUL_EN = (" Only include what is actually in the document, and keep numbers, dates, and names exactly as written. "
+                    "Ignore ads, subscribe prompts, promotional contacts, social media links, and keyword lists.")
+_SUM_FAITHFUL_ID = (" Tulis hanya hal yang benar-benar ada di dokumen, dan pertahankan angka, tanggal, dan nama persis seperti "
+                    "tertulis. Abaikan iklan, ajakan berlangganan, kontak promosi, tautan media sosial, dan daftar kata kunci.")
+
 PROMPTS = {
     "en": {
-        "head": "You turn documents into a mind map outline, written in English.\nRequired rules:",
-        "rules": (
-            "- Only include what is actually in the document. Do not add data, numbers, names, dates, opinions, "
-            "or conclusions that are not written there.\n"
-            "- Keep numbers, dates, units, terms, and names exactly as in the document.\n"
-            "- If the document is in another language, still write {out} in English; proper names and special terms "
-            "may stay as in the original.\n"
-            "- Ignore content that is not part of the substance, such as ads, subscribe prompts, promotional contacts, "
-            "social media links, and keyword lists."
-        ),
-        "out_outline": "the outline",
-        "format": (
-            "- Output only a Markdown outline in this form:\n"
-            "  # Title\n"
-            "  ## Main branch\n"
-            "  ### Sub-branch (if needed)\n"
-            "  - point\n"
-            "- Do not use tables, code blocks, links, images, emoji, or HTML. Do not write an introduction or closing sentence."
-        ),
+        # ----- instruksi bawaan yang bisa disunting -----
         "kind.poin": (
             "Summary type: Key points. The goal is for the reader to grasp the core of the document in one minute.\n"
             "- Create 3 to 6 main branches with the most important ideas or topics, in the order they appear in the document.\n"
             "- Each branch has 2 to 4 points. At most 3 levels (title, branch, point).\n"
             "- Each point is one short statement of at most 12 words.\n"
-            "- Prioritize the main message, key numbers, and stated conclusions; skip examples, minor details, and repetition."
+            "- Prioritize the main message, key numbers, and stated conclusions; skip examples, minor details, and repetition.\n"
+            + _FAITHFUL_EN
         ),
         "kind.notulen": (
             "Summary type: Minutes (notes of a meeting, discussion, interview, or podcast).\n"
@@ -227,7 +272,8 @@ PROMPTS = {
             "5. Open questions — issues that are unresolved or still debated.\n"
             "Write only the branch names as headings (e.g. \"## Meeting details\"), without the descriptions.\n"
             "- If a branch is not covered in the document, give it one point: \"Not discussed\".\n"
-            "- Each point has at most 15 words. At most 4 levels."
+            "- Each point has at most 15 words. At most 4 levels.\n"
+            + _FAITHFUL_EN
         ),
         "kind.lengkap": (
             "Summary type: Full summary. The goal is to replace reading the whole document: every important part is "
@@ -238,47 +284,68 @@ PROMPTS = {
             "and conclusions of that part.\n"
             "- Do not skip important parts, even short ones. Merge repeated content.\n"
             "- Each point has at most 20 words. At most 4 levels.\n"
-            "- End with a \"## Conclusion\" branch containing the document's conclusion or final message, if there is one."
+            "- End with a \"## Conclusion\" branch containing the document's conclusion or final message, if there is one.\n"
+            + _FAITHFUL_EN
         ),
-        "notes_head": "You take notes on the important content of part of a document, written in English.\nRequired rules:",
+        "kind.singkat": (
+            "Summary type: Short. Write one paragraph of 3 to 5 sentences that captures what the document is about, "
+            "its most important facts or numbers, and its conclusion." + _SUM_FAITHFUL_EN
+        ),
+        "kind.sedang": (
+            "Summary type: Medium. Start with a short paragraph (2 to 3 sentences) on what the document is about. "
+            "Then give a \"Key points\" list of 5 to 8 bullets with the most important facts, numbers, decisions, or "
+            "arguments. End with one sentence on the conclusion or next steps, if the document has them." + _SUM_FAITHFUL_EN
+        ),
+        "kind.rinci": (
+            "Summary type: Detailed. Follow the structure of the document: one heading per main section or topic, in the "
+            "original order, each with a short paragraph or a few bullets covering its facts, numbers, reasons, and "
+            "conclusions. Do not skip important parts, even short ones, and merge repeated content. End with a "
+            "\"Conclusion\" section if the document has a conclusion or final message." + _SUM_FAITHFUL_EN
+        ),
+        # ----- aturan tetap yang selalu ditambahkan aplikasi -----
+        "lang": ("- Write {out} in English. If the document is in another language, still write in English; proper names "
+                 "and special terms may stay as in the original."),
+        "out_outline": "the mind map outline",
+        "out_summary": "the summary",
         "out_notes": "the notes",
+        "fixed_map": (
+            "Required output:\n{lang}\n"
+            "- Output only a Markdown mind map outline in this form:\n"
+            "  # Title\n"
+            "  ## Main branch\n"
+            "  ### Sub-branch (if needed)\n"
+            "  - point\n"
+            "- Do not use tables, code blocks, links, images, emoji, or HTML. Do not write an introduction or closing sentence."
+        ),
+        "fixed_sum": (
+            "Required output:\n{lang}\n"
+            "- Output only the summary in Markdown: paragraphs, plus headings, bullet lists, or a short table only where they help.\n"
+            "- Do not start with an introduction such as \"Here is the summary\", and do not add closing remarks."
+        ),
+        # ----- catatan potongan untuk dokumen panjang (internal) -----
+        "notes_head": "You take notes on the important content of part of a document.\nRequired rules:",
         "notes_format": "- Write a Markdown bullet list, one fact per point.\n- Do not write an introduction or closing sentence.",
         "notes.poin": "Focus on the main ideas, key numbers, and stated conclusions. Skip examples, minor details, and repetition.",
         "notes.notulen": ("Focus on who said what, the topics discussed, decisions and agreements, tasks with their owners "
                           "and deadlines, and open questions."),
         "notes.lengkap": ("Focus on every section and every important fact in detail, in the order of the document, "
                           "including numbers, reasons, important examples, and conclusions."),
+        # ----- isi pesan pengguna -----
         "chunk": "Part {k} of {n} of the document \"{name}\":\n\n{text}",
         "doc": "Document \"{name}\":\n\n{text}",
         "block": "=== Document {i}: {name} ===\n{text}",
         "final": "Mind map title: {title}\n\nDocument content between <<< and >>>:\n<<<\n{body}\n>>>",
+        "final_sum": "Document title: {title}\n\nDocument content between <<< and >>>:\n<<<\n{body}\n>>>",
     },
     "id": {
-        "head": "Anda menyusun dokumen menjadi kerangka mind map dalam Bahasa Indonesia.\nAturan wajib:",
-        "rules": (
-            "- Tulis hanya hal yang benar-benar ada di dokumen. Jangan menambah data, angka, nama, tanggal, pendapat, "
-            "atau kesimpulan yang tidak tertulis.\n"
-            "- Pertahankan angka, tanggal, satuan, istilah, dan nama persis seperti di dokumen.\n"
-            "- Bila dokumen berbahasa lain, tetap tulis {out} dalam Bahasa Indonesia; nama dan istilah khusus boleh "
-            "dibiarkan seperti aslinya.\n"
-            "- Abaikan bagian yang bukan isi, seperti iklan, ajakan berlangganan, kontak promosi, tautan media sosial, "
-            "dan daftar kata kunci."
-        ),
-        "out_outline": "rangkuman",
-        "format": (
-            "- Keluarkan hanya kerangka Markdown dengan bentuk:\n"
-            "  # Judul\n"
-            "  ## Cabang utama\n"
-            "  ### Sub-cabang (bila perlu)\n"
-            "  - poin\n"
-            "- Jangan memakai tabel, blok kode, tautan, gambar, emoji, atau HTML. Jangan menulis kalimat pembuka atau penutup."
-        ),
+        # ----- instruksi bawaan yang bisa disunting -----
         "kind.poin": (
             "Jenis rangkuman: Poin utama. Tujuannya agar pembaca menangkap inti dokumen dalam satu menit.\n"
             "- Buat 3 sampai 6 cabang utama berisi gagasan atau topik terpenting, berurutan seperti di dokumen.\n"
             "- Setiap cabang berisi 2 sampai 4 poin. Paling banyak 3 tingkat (judul, cabang, poin).\n"
             "- Setiap poin berupa satu pernyataan singkat, paling banyak 12 kata.\n"
-            "- Utamakan pesan pokok, angka kunci, dan kesimpulan yang tertulis; lewati contoh, detail kecil, dan pengulangan."
+            "- Utamakan pesan pokok, angka kunci, dan kesimpulan yang tertulis; lewati contoh, detail kecil, dan pengulangan.\n"
+            + _FAITHFUL_ID
         ),
         "kind.notulen": (
             "Jenis rangkuman: Notulen (catatan rapat, diskusi, wawancara, atau podcast).\n"
@@ -291,7 +358,8 @@ PROMPTS = {
             "5. Pertanyaan terbuka — hal yang belum selesai atau masih diperdebatkan.\n"
             "Tulis hanya nama cabang sebagai judul (mis. \"## Informasi pertemuan\"), tanpa keterangannya.\n"
             "- Bila sebuah cabang tidak dibahas di dokumen, isi dengan satu poin: \"Tidak dibahas\".\n"
-            "- Setiap poin paling banyak 15 kata. Paling banyak 4 tingkat."
+            "- Setiap poin paling banyak 15 kata. Paling banyak 4 tingkat.\n"
+            + _FAITHFUL_ID
         ),
         "kind.lengkap": (
             "Jenis rangkuman: Ringkas lengkap. Tujuannya menggantikan membaca seluruh dokumen: setiap bagian penting "
@@ -302,34 +370,101 @@ PROMPTS = {
             "dan kesimpulan dari bagian itu.\n"
             "- Jangan melewatkan bagian penting, meskipun pendek. Gabungkan isi yang berulang.\n"
             "- Setiap poin paling banyak 20 kata. Paling banyak 4 tingkat.\n"
-            "- Akhiri dengan cabang \"## Kesimpulan\" berisi kesimpulan atau pesan akhir dokumen, bila ada."
+            "- Akhiri dengan cabang \"## Kesimpulan\" berisi kesimpulan atau pesan akhir dokumen, bila ada.\n"
+            + _FAITHFUL_ID
         ),
-        "notes_head": "Anda mencatat poin penting dari potongan dokumen dalam Bahasa Indonesia.\nAturan wajib:",
+        "kind.singkat": (
+            "Jenis ringkasan: Singkat. Tulis satu paragraf berisi 3 sampai 5 kalimat yang menangkap isi dokumen, "
+            "fakta atau angka terpentingnya, dan kesimpulannya." + _SUM_FAITHFUL_ID
+        ),
+        "kind.sedang": (
+            "Jenis ringkasan: Sedang. Mulai dengan satu paragraf pendek (2 sampai 3 kalimat) tentang isi dokumen. "
+            "Lalu tulis daftar \"Poin penting\" berisi 5 sampai 8 butir dengan fakta, angka, keputusan, atau argumen "
+            "terpenting. Tutup dengan satu kalimat tentang kesimpulan atau langkah selanjutnya, bila ada di dokumen."
+            + _SUM_FAITHFUL_ID
+        ),
+        "kind.rinci": (
+            "Jenis ringkasan: Rinci. Ikuti susunan dokumen: satu judul untuk setiap bagian atau topik utama, berurutan "
+            "seperti aslinya, masing-masing berisi paragraf pendek atau beberapa butir tentang fakta, angka, alasan, dan "
+            "kesimpulannya. Jangan melewatkan bagian penting, meskipun pendek, dan gabungkan isi yang berulang. Akhiri "
+            "dengan bagian \"Kesimpulan\" bila dokumen punya kesimpulan atau pesan akhir." + _SUM_FAITHFUL_ID
+        ),
+        # ----- aturan tetap yang selalu ditambahkan aplikasi -----
+        "lang": ("- Tulis {out} dalam Bahasa Indonesia. Bila dokumen berbahasa lain, tetap tulis dalam Bahasa Indonesia; "
+                 "nama dan istilah khusus boleh dibiarkan seperti aslinya."),
+        "out_outline": "kerangka mind map",
+        "out_summary": "rangkuman",
         "out_notes": "catatan",
+        "fixed_map": (
+            "Aturan keluaran:\n{lang}\n"
+            "- Keluarkan hanya kerangka mind map Markdown dengan bentuk:\n"
+            "  # Judul\n"
+            "  ## Cabang utama\n"
+            "  ### Sub-cabang (bila perlu)\n"
+            "  - poin\n"
+            "- Jangan memakai tabel, blok kode, tautan, gambar, emoji, atau HTML. Jangan menulis kalimat pembuka atau penutup."
+        ),
+        "fixed_sum": (
+            "Aturan keluaran:\n{lang}\n"
+            "- Keluarkan hanya rangkumannya dalam Markdown: paragraf, ditambah judul, daftar poin, atau tabel pendek "
+            "hanya bila membantu.\n"
+            "- Jangan membuka dengan kalimat seperti \"Berikut rangkumannya\", dan jangan menambah penutup."
+        ),
+        # ----- catatan potongan untuk dokumen panjang (internal) -----
+        "notes_head": "Anda mencatat poin penting dari potongan dokumen.\nAturan wajib:",
         "notes_format": "- Tulis sebagai daftar poin Markdown, satu fakta per poin.\n- Jangan menulis kalimat pembuka atau penutup.",
         "notes.poin": "Fokus pada gagasan pokok, angka kunci, dan kesimpulan yang tertulis. Lewati contoh, detail kecil, dan pengulangan.",
         "notes.notulen": ("Fokus pada siapa menyampaikan apa, pokok bahasan, keputusan dan kesepakatan, tugas beserta "
                           "penanggung jawab dan tenggatnya, serta pertanyaan yang belum terjawab."),
         "notes.lengkap": ("Fokus pada setiap bagian dan setiap fakta penting secara rinci, berurutan seperti di dokumen, "
                           "termasuk angka, alasan, contoh penting, dan kesimpulan."),
+        # ----- isi pesan pengguna -----
         "chunk": "Potongan {k} dari {n} dokumen \"{name}\":\n\n{text}",
         "doc": "Dokumen \"{name}\":\n\n{text}",
         "block": "=== Dokumen {i}: {name} ===\n{text}",
         "final": "Judul mind map: {title}\n\nIsi dokumen di antara tanda <<< dan >>>:\n<<<\n{body}\n>>>",
+        "final_sum": "Judul dokumen: {title}\n\nIsi dokumen di antara tanda <<< dan >>>:\n<<<\n{body}\n>>>",
     },
 }
+_NOTES_RULES = {"en": _FAITHFUL_EN, "id": _FAITHFUL_ID}
+NOTES_KIND = {"singkat": "poin", "sedang": "poin", "rinci": "lengkap"}  # catatan potongan untuk rangkuman teks
+PROMPT_LIMIT = 4000  # panjang maksimum instruksi buatan pengguna
 
 
-def system_prompt(kind: str, lang: str | None = None) -> str:
-    """Perintah sistem untuk menyusun kerangka mind map jenis ini."""
-    p = PROMPTS.get(lang or get_lang(), PROMPTS["en"])
-    return "\n".join([p["head"], p["rules"].format(out=p["out_outline"]), p["format"], "", p[f"kind.{clean_kind(kind)}"]])
+def _lang_table(lang: str | None) -> tuple[str, dict]:
+    lang = lang if lang in PROMPTS else get_lang()
+    return lang, PROMPTS.get(lang, PROMPTS["en"])
+
+
+def prompt_defaults(lang: str | None = None) -> dict[str, str]:
+    """Instruksi bawaan semua jenis (mind map dan rangkuman teks) dalam bahasa aktif, untuk ditampilkan di Pengaturan."""
+    _, p = _lang_table(lang)
+    return {k: p[f"kind.{k}"] for k in PROMPT_KINDS}
+
+
+def instruction(kind: str, custom: dict | None = None, lang: str | None = None) -> str:
+    """Instruksi buatan pengguna untuk jenis ini, atau instruksi bawaan bila kosong."""
+    text = ((custom or {}).get(kind) or "").strip()
+    return text[:PROMPT_LIMIT] if text else prompt_defaults(lang)[kind]
+
+
+def system_prompt(kind: str, lang: str | None = None, custom: dict | None = None) -> str:
+    """Perintah sistem lengkap: instruksi (bisa disunting) + aturan tetap (bahasa dan bentuk keluaran).
+    Jenis rangkuman teks (singkat | sedang | rinci) menghasilkan Markdown biasa, jenis mind map menghasilkan kerangka."""
+    lang, p = _lang_table(lang)
+    text_kind = kind in SUM_KINDS
+    kind = kind if text_kind else clean_kind(kind)
+    out = p["out_summary"] if text_kind else p["out_outline"]
+    fixed = p["fixed_sum" if text_kind else "fixed_map"].format(lang=p["lang"].format(out=out))
+    return instruction(kind, custom, lang) + "\n\n" + fixed
 
 
 def notes_prompt(kind: str, lang: str | None = None) -> str:
     """Perintah sistem untuk mencatat poin penting dari potongan dokumen panjang; fokusnya mengikuti jenis rangkuman."""
-    p = PROMPTS.get(lang or get_lang(), PROMPTS["en"])
-    return "\n".join([p["notes_head"], p["rules"].format(out=p["out_notes"]), p["notes_format"], "", p[f"notes.{clean_kind(kind)}"]])
+    lang, p = _lang_table(lang)
+    kind = NOTES_KIND.get(kind) or clean_kind(kind)
+    return "\n".join([p["notes_head"], _NOTES_RULES[lang], p["lang"].format(out=p["out_notes"]), p["notes_format"], "",
+                      p[f"notes.{kind}"]])
 
 
 CHUNK_CHARS = 60_000   # sekitar 15 ribu token: aman untuk semua penyedia yang didukung
@@ -399,22 +534,39 @@ def clean_outline(md: str, title: str) -> str:
     return promote_orphans("\n".join(out))
 
 
+def clean_summary(md: str) -> str:
+    """Rapikan jawaban AI untuk rangkuman teks: buang pagar kode pembungkus dan baris kosong berlebih."""
+    text = (md or "").replace("\r\n", "\n").strip()
+    m = re.fullmatch(r"```[\w-]*\s*\n(.*)\n```", text, flags=re.S)
+    if m:
+        text = m.group(1).strip()
+    return re.sub(r"\n{3,}", "\n\n", text) or t("mm.no_points")
+
+
 class Summarizer:
-    def __init__(self, cfg: ai_mod.AIConfig, kind: str, progress: Progress, cancel: threading.Event):
+    """Rangkuman AI: kerangka mind map (poin | notulen | lengkap) atau rangkuman teks (singkat | sedang | rinci).
+    prompts: instruksi buatan pengguna per jenis (pengaturan "prompts"); kosong berarti instruksi bawaan."""
+
+    def __init__(self, cfg: ai_mod.AIConfig, kind: str, progress: Progress, cancel: threading.Event,
+                 prompts: dict | None = None):
         self.cfg = cfg
-        self.kind = clean_kind(kind)
+        self.text_mode = kind in SUM_KINDS
+        self.kind = kind if self.text_mode else clean_kind(kind)
+        self.prompts = prompts or {}
         self.progress = progress
         self.cancel = cancel
         self.lang = get_lang()  # satu rangkuman memakai satu bahasa, meski bahasa aplikasi diganti di tengah jalan
         self._p = PROMPTS.get(self.lang, PROMPTS["en"])
-        # Ringkas lengkap butuh catatan lebih panjang supaya rinciannya tidak hilang.
-        self.notes_target = NOTES_TARGET * 2 if self.kind == "lengkap" else NOTES_TARGET
+        # Rangkuman lengkap/rinci butuh catatan lebih panjang supaya rinciannya tidak hilang.
+        self.notes_target = NOTES_TARGET * 2 if NOTES_KIND.get(self.kind, self.kind) == "lengkap" else NOTES_TARGET
 
     def _check(self) -> None:
         if self.cancel.is_set():
             raise Cancelled()
 
     def _no_text(self, title: str) -> str:
+        if self.text_mode:
+            return t("sum.no_text")
         return f"# {title}\n## {t('mm.no_text_head')}\n- {t('mm.no_text_tip')}"
 
     def _block(self, i: int, name: str, text: str) -> str:
@@ -438,9 +590,12 @@ class Summarizer:
 
     def _final(self, title: str, body: str) -> str:
         self._check()
+        system = system_prompt(self.kind, self.lang, self.prompts)
+        if self.text_mode:
+            self.progress(t("sum.writing"))
+            return clean_summary(ai_mod.chat(self.cfg, system, self._p["final_sum"].format(title=title, body=body)))
         self.progress(t("mm.building"))
-        user = self._p["final"].format(title=title, body=body)
-        return clean_outline(ai_mod.chat(self.cfg, system_prompt(self.kind, self.lang), user), title)
+        return clean_outline(ai_mod.chat(self.cfg, system, self._p["final"].format(title=title, body=body)), title)
 
     def one(self, title: str, text: str) -> str:
         title = base_name(title)
@@ -477,5 +632,3 @@ class Summarizer:
         if len(body) > CHUNK_CHARS:
             body = self._notes(title, body)[:CHUNK_CHARS]
         return self._final(title, body)
-
-

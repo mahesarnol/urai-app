@@ -9,6 +9,7 @@ import threading
 from pathlib import Path
 
 from .ai import PROVIDERS
+from .summarize import PROMPT_KINDS, PROMPT_LIMIT
 from .i18n import t
 from .info import APP_ID
 from .paths import config_dir
@@ -23,6 +24,7 @@ DEFAULTS: dict = {
     "ocr_mode": "offline",         # off | offline | ai
     "langs": ["ind", "eng"],
     "quality": "fast",             # fast | accurate
+    "pdf_engine": "standard",      # standard | docling (mesin PDF teliti yang diunduh terpisah)
     "embedded": True,
     "provider": "gemini",
     "models": {},                  # model pilihan per penyedia; kosong berarti bawaan
@@ -31,8 +33,10 @@ DEFAULTS: dict = {
     "custom_dir": "",              # kosong berarti Dokumen\Urai App
     "runs": 0,                     # berapa kali konversi selesai (untuk ajakan dukungan)
     "supported": False,
-    "mm_src": "",                  # struct | ai; kosong berarti dipilih otomatis
+    "mm_src": "",                  # struct | ai | sum; kosong berarti dipilih otomatis
     "mm_kind": "poin",             # poin | notulen | lengkap
+    "sum_kind": "sedang",          # singkat | sedang | rinci (rangkuman teks)
+    "prompts": {},                 # instruksi AI buatan pengguna per jenis; kosong berarti bawaan
     "mm_style": None,              # gaya mind map terakhir
     "pdf": {"size": "A4", "orient": "land", "title": True, "label": True, "text": False},
 }
@@ -43,9 +47,11 @@ _ENUMS = {
     "out_mode": {"separate", "combined"},
     "ocr_mode": {"off", "offline", "ai"},
     "quality": {"fast", "accurate"},
+    "pdf_engine": {"standard", "docling"},
     "location": {"custom", "same"},
-    "mm_src": {"", "struct", "ai"},
+    "mm_src": {"", "struct", "ai", "sum"},
     "mm_kind": {"poin", "notulen", "lengkap"},
+    "sum_kind": {"singkat", "sedang", "rinci"},
 }
 _LEGACY = {"mm_kind": {"umum": "poin", "laporan": "lengkap"}}  # nilai dari versi lama tetap dipahami
 _LANGS = {"ind", "eng", "jav", "sun", "ara"}
@@ -81,6 +87,10 @@ def _clean(key: str, value):
                 if isinstance(value.get(k), bool):
                     out[k] = value[k]
         return out
+    if key == "prompts":
+        if not isinstance(value, dict):
+            return {}
+        return {k: v.strip()[:PROMPT_LIMIT] for k, v in value.items() if k in PROMPT_KINDS and isinstance(v, str) and v.strip()}
     if key == "mm_style":
         return value if isinstance(value, dict) else None
     if isinstance(default, bool):

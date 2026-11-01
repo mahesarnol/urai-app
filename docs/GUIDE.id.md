@@ -46,6 +46,21 @@ Tekan **Atur** di bawah pilihan mode, atau **Pengaturan › Baca offline**, untu
 - **Ketelitian**: *Cepat* untuk scan yang bersih, *Teliti* untuk scan buram atau foto dari HP (sekitar dua kali lebih lama).
 - **Baca juga gambar di dalam Word, PowerPoint, dan Excel**: misalnya grafik atau tabel yang ditempel sebagai gambar. Teksnya ditambahkan di akhir hasil dokumen itu.
 
+### Mesin PDF akurat (opsional)
+
+Mesin standar cepat, tetapi tabel yang selnya berisi teks panjang, judul, dan tata letak beberapa kolom di PDF bisa terbaca berantakan. Mesin **Akurat (Docling)** membaca tata letak halaman lebih dulu, sehingga tabel, judul, dan paragraf jauh lebih rapi.
+
+1. Buka **Pengaturan › Baca offline**, lalu pilih **Akurat (Docling)** di **Mesin PDF**. Perubahan di bagian ini langsung berlaku.
+2. Pertama kali, aplikasi menawarkan unduhan sekali saja sekitar 1 GB. Tekan **Unduh**. Jendela boleh ditutup selama mengunduh; mode Akurat menyala sendiri setelah selesai. Bila unduhan terputus, lain kali dilanjutkan dari bagian terakhir.
+3. Setelah itu mesin bisa dipakai offline. PDF di daftar diberi label **Akurat**.
+
+Perlu diketahui:
+
+- Sekitar 3–5 kali lebih lambat daripada mesin standar, dan PDF pertama setelah aplikasi dibuka butuh waktu lebih lama karena mesinnya dimuat dulu.
+- Hanya PDF berteks yang memakainya. File Word, PowerPoint, dan Excel, serta PDF yang seluruhnya hasil scan, tetap memakai pembaca standar dan OCR. Pada PDF yang sebagian halamannya hasil scan, halaman scan itu dibaca OCR offline di dalam mesin akurat.
+- Bila mesin akurat gagal membaca sebuah dokumen, aplikasi membacanya dengan mesin standar dan memberi catatan di baris itu.
+- Untuk mengosongkan ruang lagi, tekan **Hapus** di bawah status mesin.
+
 ### Memakai mode AI
 
 1. Buka **Pengaturan › AI**.
@@ -87,7 +102,24 @@ Tekan **Edit** di bar pratinjau. Bar kuning menunjukkan apakah ada perubahan yan
 - Pada **Gabung jadi satu**, yang diedit adalah seluruh file gabungan.
 - Setelah disimpan, mind map dokumen itu dibuat ulang dari teks yang sudah diedit.
 
-## 4. Mind map
+## 4. Ringkasan
+
+Buka tab **Ringkasan** di panel hasil (atau tekan tombol **Ringkasan**). Ringkasan ditulis oleh AI, jadi butuh API key (lihat *Memakai mode AI*). Seluruh teks dokumen yang dipilih, atau seluruh file gabungan, dikirim ke penyedia AI Anda.
+
+1. Pilih **Panjang ringkasan**:
+   - **Singkat**: satu paragraf.
+   - **Sedang**: paragraf pembuka, poin-poin penting, dan kesimpulan.
+   - **Rinci**: per bagian, sesuai urutan dokumen.
+2. Tekan **Buat ringkasan**. Dokumen yang sangat panjang diringkas bertahap. Ringkasan ditulis dalam bahasa aplikasi.
+3. Setelah itu Anda bisa menekan **Salin**, **Simpan .md** untuk menyimpannya sebagai file, beralih ke panjang lain, **Buat ulang**, atau **Buat mind map dari ini**.
+
+Ringkasan AI bisa keliru. Selalu periksa kembali dengan dokumen asli.
+
+### Mengatur instruksi AI
+
+Buka **Pengaturan › Prompt** untuk mengubah hal yang diperhatikan AI, untuk setiap panjang ringkasan (Singkat, Sedang, Rinci) dan setiap jenis mind map (Poin utama, Notulen, Ringkas lengkap). Instruksi yang diubah ditandai **Diubah**, dan **Kembalikan ke bawaan** mengembalikan teks aslinya. Tekan **Simpan** untuk menyimpan perubahan. Urai App selalu menambahkan aturan format dan bahasa keluaran, sehingga hasilnya tetap tampil dengan benar.
+
+## 5. Mind map
 
 Buka tab **Mind map** di panel hasil (atau tombol **Mind map**).
 
@@ -99,6 +131,7 @@ Buka tab **Mind map** di panel hasil (atau tombol **Mind map**).
      - **Ringkas lengkap**: semua bagian penting dokumen, sesuai urutannya, ditulis padat.
 
      Seluruh teks dokumen dikirim ke penyedia AI; jumlah katanya ditampilkan sebelum Anda menekan tombol. Dokumen yang sangat panjang diringkas bertahap. Rangkuman ditulis dalam bahasa aplikasi.
+   - **Dari ringkasan**: gratis dan offline. Mind map dibuat dari ringkasan yang sudah Anda buat di tab **Ringkasan**; pilih panjang ringkasan yang dipakai. Tidak ada lagi yang dikirim ke AI.
 2. Tekan **Buat mind map** atau **Buat rangkuman AI**.
 3. Di mind map: geser dengan menyeret, perbesar dengan roda mouse atau tombol + dan −, klik lingkaran pada cabang untuk melipat atau membukanya. **Pas** mengembalikan ke ukuran layar, **Lipat** menampilkan cabang utama saja, **Layar penuh** untuk presentasi, **Teks** menampilkan rangkuman sebagai daftar.
 
@@ -135,14 +168,14 @@ Tekan **Simpan** lalu pilih:
 
 Rangkuman AI bisa keliru. Selalu periksa kembali dengan dokumen asli sebelum dipakai.
 
-## 5. Fitur eksperimental
+## 6. Fitur eksperimental
 
 Keduanya bergantung pada layanan pihak ketiga yang bisa berubah sewaktu-waktu.
 
 - **Link YouTube**: mengambil judul, deskripsi, dan transkrip. Hanya untuk video yang punya subtitle atau transkrip otomatis; bahasa Indonesia diambil lebih dulu, lalu bahasa Inggris. Bila YouTube menolak permintaan dari jaringan Anda, coba lagi nanti.
 - **Rekaman suara**: diubah jadi teks dalam bahasa Indonesia lewat layanan pengenal suara Google, jadi butuh internet dan rekaman dikirim ke Google. File WAV bisa langsung dipakai. File MP3, M4A, dan MP4 butuh [FFmpeg](https://www.gyan.dev/ffmpeg/builds/) terpasang dan tercantum di PATH Windows. Rekaman yang panjang bisa ditolak layanan; potong menjadi bagian beberapa menit.
 
-## 6. Masalah yang sering terjadi
+## 7. Masalah yang sering terjadi
 
 | Masalah | Penyebab dan jalan keluar |
 | --- | --- |

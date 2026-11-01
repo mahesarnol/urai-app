@@ -15,8 +15,10 @@
 - **Select and remove.** Tick one, several, or all documents to remove them from the list, or clear the whole list. Files on your computer are never deleted.
 - **Edit the results.** Fix or delete any part right in the preview, edit the Markdown text directly, or rename and delete mind map branches. Changes are saved to the `.md` file.
 - **Read scanned PDFs and images offline.** Uses the bundled Tesseract OCR, running on your CPU. Supports Indonesian, English, Javanese, Sundanese, and Arabic. Scanned PDFs are detected automatically.
+- **Accurate PDF engine (optional).** For PDFs with tables, headings, and complex layouts, switch to the Docling engine in **Settings › Offline reading**. It is a one-time download of about 1 GB, then works offline. It is slower than the standard engine.
 - **AI mode (optional).** Use your own API key from Claude, Gemini, DeepSeek, OpenAI, OpenRouter, or another compatible server. More accurate for blurry scans, and it can describe charts.
 - **Read images inside Word, PowerPoint, and Excel**, such as charts or tables pasted as pictures.
+- **Summaries.** An AI summary in three lengths (Short, Medium, Detailed), ready to copy or save as `.md`, and usable as the source of a mind map. The AI instructions for summaries and mind maps can be adjusted in **Settings › Prompts**.
 - **Mind maps.** Turn results into interactive mind maps like [markmap](https://markmap.js.org), either from the document structure (free, offline) or from an AI summary (Key points, Minutes, or Full summary). Colors and line widths can be set per level. Save as print-ready PDF (A4, A3, F4), PNG, interactive HTML, or Markdown.
 - **Experimental:** YouTube video transcripts and speech-to-text for voice recordings.
 - **English or Bahasa Indonesia**, with a light, dark, or system theme.
@@ -49,7 +51,7 @@ The full guide is in [docs/GUIDE.md](docs/GUIDE.md).
 
 Urai App collects no data and has no server. Documents only leave your computer when you yourself use:
 
-- **AI mode** or **AI summary**: sent to the AI provider you choose, using your API key;
+- **AI mode**, **Summary**, or **AI summary** mind maps: sent to the AI provider you choose, using your API key;
 - **YouTube links or web pages**: fetched directly from the site;
 - **voice recordings**: sent to Google's speech recognition service.
 

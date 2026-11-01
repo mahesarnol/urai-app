@@ -39,6 +39,8 @@
   <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/></symbol>
   <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></symbol>
   <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></symbol>
+  <symbol id="i-sum" viewBox="0 0 24 24"><path d="M5 6h14M5 10h14M5 14h10M5 18h6"/></symbol>
+  <symbol id="i-table" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M3.5 10h17M3.5 14.5h17M10 10v9"/></symbol>
   <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M20 16l-5-5-8 8"/></symbol>
 </svg>
 
@@ -169,6 +171,7 @@
             <button class="btn primary" type="button" id="openFile"><svg class="ic"><use href="#i-open"/></svg><span id="openFileText" data-i18n="res.openFile">Open file</span></button>
             <button class="btn" type="button" id="openFolder" data-i18n="res.openFolder"><svg class="ic"><use href="#i-folder"/></svg>Open folder</button>
             <button class="btn" type="button" id="copyText" data-i18n="res.copy"><svg class="ic"><use href="#i-copy"/></svg>Copy text</button>
+            <button class="btn" type="button" id="toSum" data-i18n="res.sum"><svg class="ic"><use href="#i-sum"/></svg>Summary</button>
             <button class="btn" type="button" id="toMap" data-i18n="res.map"><svg class="ic"><use href="#i-spark"/></svg>Mind map</button>
           </div>
           <div class="pv">
@@ -176,6 +179,7 @@
               <div class="tabs" role="tablist" data-i18n-attr="aria-label:tab.aria" aria-label="Preview mode">
                 <button type="button" role="tab" data-tab="view" aria-selected="true" data-i18n="tab.view">Preview</button>
                 <button type="button" role="tab" data-tab="raw" aria-selected="false" data-i18n="tab.raw">Markdown text</button>
+                <button type="button" role="tab" data-tab="sum" aria-selected="false" data-i18n="tab.sum">Summary</button>
                 <button type="button" role="tab" data-tab="map" aria-selected="false" data-i18n="tab.map">Mind map</button>
               </div>
               <span class="pvlabel" id="pvLabel"></span>
@@ -196,12 +200,14 @@
                   <div class="opts">
                     <button class="opt" type="button" data-src="struct" aria-pressed="false"><span class="top"><span class="ot" data-i18n="mm.struct">Document structure</span><span class="rad"></span></span><span class="os" data-i18n="mm.structSub">Free and offline. Branches come from the document’s headings and lists.</span></button>
                     <button class="opt" type="button" data-src="ai" aria-pressed="true"><span class="top"><span class="ot" data-i18n="mm.ai">AI summary</span><span class="rad"></span></span><span class="os" data-i18n="mm.aiSub">More concise, and can combine several documents. Uses your API key.</span></button>
+                    <button class="opt" type="button" data-src="sum" aria-pressed="false"><span class="top"><span class="ot" data-i18n="mm.fromSum">From summary</span><span class="rad"></span></span><span class="os" data-i18n="mm.fromSumSub">Free and offline. Built from the summary in the Summary tab.</span></button>
                   </div>
                 </div>
                 <div class="grp" id="mmKindGrp">
-                  <span class="glabel" data-i18n="mm.kind">Summary type</span>
+                  <span class="glabel" id="mmKindLbl" data-i18n="mm.kind">Summary type</span>
                   <div class="kindrow">
                     <div class="mseg" id="mmKind" role="group" data-i18n-attr="aria-label:mm.kind" aria-label="Summary type"><button type="button" data-k="poin" aria-pressed="true" data-i18n="kind.poin">Key points</button><button type="button" data-k="notulen" aria-pressed="false" data-i18n="kind.notulen">Minutes</button><button type="button" data-k="lengkap" aria-pressed="false" data-i18n="kind.lengkap">Full summary</button></div>
+                    <div class="mseg" id="mmSumKind" role="group" hidden data-i18n-attr="aria-label:sum.len" aria-label="Summary length"><button type="button" data-k="singkat" data-i18n="sum.singkat">Short</button><button type="button" data-k="sedang" data-i18n="sum.sedang">Medium</button><button type="button" data-k="rinci" data-i18n="sum.rinci">Detailed</button></div>
                     <span class="fhint" id="mmKindHint"></span>
                   </div>
                 </div>
@@ -256,6 +262,32 @@
                 <div class="mmfoot"><span class="tag" id="mmSrcTag"></span><span class="tag scan off" id="mmWarn" data-i18n="mm.warn">May contain mistakes, please double-check</span><span class="tag ok" id="mmPlace" data-i18n="mm.local"><svg class="ic"><use href="#i-shield"/></svg>Offline, on this computer</span><span class="gap"></span><button class="btn sm quiet" type="button" id="mmRedo" data-i18n="mm.redo">Create again</button></div>
               </div>
             </div>
+            <!-- Ringkasan teks: tata letaknya mengikuti panel mind map (atur, sedang dibuat, hasil) -->
+            <div class="mm" id="sumPanel" hidden>
+              <div class="mmsetup" id="sumSetup">
+                <div class="grp">
+                  <span class="glabel" data-i18n="sum.len">Summary length</span>
+                  <div class="kindrow">
+                    <div class="mseg" id="sumKind" role="group" data-i18n-attr="aria-label:sum.len" aria-label="Summary length"><button type="button" data-k="singkat" data-i18n="sum.singkat">Short</button><button type="button" data-k="sedang" aria-pressed="true" data-i18n="sum.sedang">Medium</button><button type="button" data-k="rinci" data-i18n="sum.rinci">Detailed</button></div>
+                    <span class="fhint" id="sumKindHint"></span>
+                  </div>
+                </div>
+                <div class="note warn" id="sumNote"></div>
+                <div class="mmgo"><span class="pmeta" id="sumScope"></span><button class="btn primary" type="button" id="sumGo" data-i18n="sum.go"><svg class="ic"><use href="#i-sum"/></svg>Create summary</button></div>
+              </div>
+              <div class="mmbusy" id="sumBusy" hidden><span class="row1"><span class="spin"></span><span id="sumBusyText" data-i18n="sum.busy">Writing the summary…</span></span><button class="btn sm" type="button" id="sumStop" data-i18n="mm.stop">Cancel</button></div>
+              <div class="mmready" id="sumReady" hidden>
+                <div class="mmbar">
+                  <div class="mseg sm" id="sumKindBar" role="group" data-i18n-attr="aria-label:sum.len" aria-label="Summary length"><button type="button" data-k="singkat" data-i18n="sum.singkat">Short</button><button type="button" data-k="sedang" aria-pressed="true" data-i18n="sum.sedang">Medium</button><button type="button" data-k="rinci" data-i18n="sum.rinci">Detailed</button></div>
+                  <span class="gap"></span>
+                  <button class="btn sm quiet" type="button" id="sumCopy" data-i18n="sum.copy">Copy</button>
+                  <button class="btn sm quiet" type="button" id="sumSave" data-i18n="sum.save">Save .md</button>
+                  <button class="btn sm" type="button" id="sumToMap" data-i18n="sum.toMap"><svg class="ic"><use href="#i-spark"/></svg>Make a mind map from this</button>
+                </div>
+                <div class="sumstage"><div class="md mmtext" id="sumText"></div></div>
+                <div class="mmfoot"><span class="tag" id="sumTag"></span><span class="tag scan off" data-i18n="mm.warn">May contain mistakes, please double-check</span><span class="gap"></span><button class="btn sm quiet" type="button" id="sumRedo" data-i18n="mm.redo">Create again</button></div>
+              </div>
+            </div>
           </div>
           <div class="size" id="sizeMeter"></div>
           <div class="again">
@@ -294,6 +326,7 @@
           <button type="button" data-pane="general" aria-pressed="true" data-i18n="set.tabGeneral">General</button>
           <button type="button" data-pane="offline" aria-pressed="false" data-i18n="set.tabOffline">Offline reading</button>
           <button type="button" data-pane="ai" aria-pressed="false" data-i18n="set.tabAi">AI</button>
+          <button type="button" data-pane="prompts" aria-pressed="false" data-i18n="set.tabPrompts">Prompts</button>
         </div>
       </div>
       <div class="dbody">
@@ -333,6 +366,16 @@
           </div>
           <label class="toggle" for="ocrEmbedded" data-i18n="off.embedded"><input type="checkbox" id="ocrEmbedded" checked> Also read images inside Word, PowerPoint, and Excel files</label>
           <div class="note ok"><svg class="ic"><use href="#i-shield"/></svg><span data-i18n="off.private">Everything is processed on this computer. Your documents aren’t sent to the internet.</span></div>
+          <!-- mesin PDF langsung berlaku (tidak menunggu tombol Simpan), karena unduhannya bisa selesai setelah dialog ditutup -->
+          <div class="field engfield" id="engField" hidden>
+            <span class="flabel" data-i18n="eng.label">PDF engine</span>
+            <div class="mseg" id="engSeg" role="group" data-i18n-attr="aria-label:eng.label" aria-label="PDF engine">
+              <button type="button" data-v="standard" aria-pressed="true" data-i18n="eng.standard">Standard (fast)</button>
+              <button type="button" data-v="docling" aria-pressed="false" data-i18n="eng.docling">Accurate (Docling)</button>
+            </div>
+            <p class="fhint" data-i18n="eng.hint">Accurate gives better results for tables and complex layouts, but is slower. It works offline after a one-time download of about 1 GB. Scanned PDFs still use OCR. Changes here apply right away.</p>
+            <div class="engbox" id="engBox" aria-live="polite"></div>
+          </div>
         </div>
 
         <div class="pane" id="pane-ai" hidden>
@@ -369,11 +412,19 @@
             </div>
           </details>
         </div>
+
+        <!-- Prompt: instruksi AI untuk ringkasan dan mind map; kolom diisi app.js, disimpan dengan tombol Simpan -->
+        <div class="pane" id="pane-prompts" hidden>
+          <div class="note info"><svg class="ic"><use href="#i-info"/></svg><span data-i18n="pr.note">These instructions tell the AI what to focus on. Urai App always adds the rules for the output format and language, so results still display correctly.</span></div>
+          <div class="pgrp" role="group" aria-labelledby="prSumH"><h5 class="pgh" id="prSumH" data-i18n="pr.sum">Summary</h5><div id="prSum"></div></div>
+          <div class="pgrp" role="group" aria-labelledby="prMmH"><h5 class="pgh" id="prMmH" data-i18n="pr.mm">Mind map</h5><div id="prMm"></div></div>
+        </div>
       </div>
       <div class="dfoot">
         <span class="fmsg" id="testMsg"></span>
         <span class="gap"></span>
         <button class="btn" type="button" id="dCancel" data-close data-i18n="cancel">Cancel</button>
+        <button class="btn primary" type="button" id="pSave" hidden data-i18n="set.save">Save</button>
         <button class="btn primary" type="button" id="dSave" data-i18n="set.saveUse">Save &amp; use this mode</button>
         <button class="btn primary" type="button" id="dDone" data-close data-i18n="set.done">Done</button>
       </div>
@@ -444,6 +495,7 @@
               <tr><td>SpeechRecognition</td><td data-i18n="lic.speech">Voice recordings to text</td><td>BSD-3</td></tr>
               <tr><td>markmap, d3</td><td data-i18n="lic.markmap">Mind map</td><td>MIT, ISC</td></tr>
               <tr><td>ReportLab</td><td data-i18n="lic.reportlab">Mind map PDFs</td><td>BSD-3</td></tr>
+              <tr><td>Docling, PyTorch</td><td data-i18n="lic.docling">Accurate PDF engine (optional download)</td><td>MIT, BSD-3; models Apache 2.0, CDLA-Permissive 2.0</td></tr>
               <tr><td>Plus Jakarta Sans, JetBrains Mono</td><td data-i18n="lic.fonts">Fonts</td><td>OFL 1.1</td></tr>
               <tr><td data-i18n="lic.others">Other supporting libraries</td><td data-i18n="lic.support">Supporting code</td><td>MIT, BSD, Apache, MPL 2.0</td></tr>
             </tbody>
@@ -479,6 +531,8 @@
           <ul class="tips">
             <li data-i18n-html="help.t1"></li>
             <li data-i18n-html="help.t2"></li>
+            <li data-i18n-html="help.t8"></li>
+            <li data-i18n-html="help.t9"></li>
             <li data-i18n-html="help.t3"></li>
             <li data-i18n-html="help.t4"></li>
             <li><span data-i18n-html="help.t5"></span> <button class="linkbtn" type="button" data-link="ffmpeg" data-i18n="help.ffmpeg">Download FFmpeg</button></li>

@@ -55,6 +55,23 @@ STRINGS: dict[str, dict[str, str | tuple[str, str]]] = {
         "sub.web": "Reading web page…",
         "sub.check_pages": "Checking pages…",
         "sub.read_pages": ("Reading {n} page…", "Reading {n} pages…"),
+        "sub.docling_start": "Starting the accurate PDF engine…",
+        "sub.docling_read": "Reading layout and tables (accurate mode)…",
+        "sub.docling_fallback": "The accurate engine couldn't read this file, using the standard reader…",
+        "note.docling_fallback": "The accurate PDF engine couldn't read this file, so the standard reader was used.",
+        "note.docling_missing": "The accurate PDF engine isn't installed, so the standard reader was used.",
+        # ---------- mengunduh mesin PDF teliti ----------
+        "dl.offline": "Couldn't download the accurate PDF engine. Check your internet connection and try again.",
+        "dl.interrupted": "The download was interrupted. Try again to continue where it stopped.",
+        "dl.not_found": "The accurate PDF engine isn't available for download right now. Try again later.",
+        "dl.server": "The download server didn't respond properly. Try again later.",
+        "dl.disk": "Not enough free disk space. Installing the accurate PDF engine needs about {gb} GB free.",
+        "dl.disk_full": "The disk ran out of space while installing. Free up some space and try again.",
+        "dl.checksum": "The downloaded file was damaged (checksum mismatch). Please download it again.",
+        "dl.extract": "Couldn't unpack the accurate PDF engine. Try downloading it again.",
+        "dl.failed": "Couldn't install the accurate PDF engine. Try again.",
+        "dl.busy": "The accurate PDF engine is already downloading.",
+        "dl.remove_failed": "Couldn't remove the accurate PDF engine. Close Urai App and try again.",
         # ---------- teks yang ditulis ke Markdown ----------
         "md.read_with": "> Read with {label}",
         "md.scan_note": ("> Read with {label} · {k} of {n} page scanned", "> Read with {label} · {k} of {n} pages scanned"),
@@ -120,6 +137,12 @@ STRINGS: dict[str, dict[str, str | tuple[str, str]]] = {
         "mm.no_text_tip": "Turn on scan reading, then try again",
         "mm.no_structure": "No structure could be found",
         "mm.no_points": "Nothing to summarize",
+        "sum.ai_needs_key": "Summaries are written by AI and need an API key. Add it in Settings.",
+        "sum.need_summary": "Create a summary first in the Summary tab.",
+        "sum.writing": "Writing the summary…",
+        "sum.no_text": "No readable text to summarize. Turn on scan reading, then try again.",
+        "sum.title": "Summary",
+        "sum.file_suffix": "summary",
         "export.ai_label": "AI summary, may contain mistakes. Check it against the original document.",
         "export.fit": "Fit to screen",
         "export.made_with": "Made with {app}",
@@ -200,6 +223,23 @@ STRINGS: dict[str, dict[str, str | tuple[str, str]]] = {
         "sub.web": "Membaca halaman web…",
         "sub.check_pages": "Memeriksa halaman…",
         "sub.read_pages": "Membaca {n} halaman…",
+        "sub.docling_start": "Menyalakan mesin PDF teliti…",
+        "sub.docling_read": "Membaca tata letak dan tabel (mode teliti)…",
+        "sub.docling_fallback": "Mesin teliti gagal membaca file ini, memakai pembaca biasa…",
+        "note.docling_fallback": "Mesin PDF teliti tidak bisa membaca file ini, jadi pembaca biasa yang dipakai.",
+        "note.docling_missing": "Mesin PDF teliti belum terpasang, jadi pembaca biasa yang dipakai.",
+        # ---------- mengunduh mesin PDF teliti ----------
+        "dl.offline": "Mesin PDF teliti tidak bisa diunduh. Periksa koneksi internet, lalu coba lagi.",
+        "dl.interrupted": "Unduhan terputus. Coba lagi untuk melanjutkan dari bagian terakhir.",
+        "dl.not_found": "Mesin PDF teliti belum tersedia untuk diunduh. Coba lagi nanti.",
+        "dl.server": "Server unduhan tidak merespons dengan benar. Coba lagi nanti.",
+        "dl.disk": "Ruang disk tidak cukup. Memasang mesin PDF teliti butuh sekitar {gb} GB ruang kosong.",
+        "dl.disk_full": "Disk penuh saat memasang. Kosongkan sebagian ruang, lalu coba lagi.",
+        "dl.checksum": "File unduhan rusak (checksum tidak cocok). Silakan unduh ulang.",
+        "dl.extract": "Mesin PDF teliti tidak bisa dibongkar. Coba unduh ulang.",
+        "dl.failed": "Mesin PDF teliti tidak bisa dipasang. Coba lagi.",
+        "dl.busy": "Mesin PDF teliti sedang diunduh.",
+        "dl.remove_failed": "Mesin PDF teliti tidak bisa dihapus. Tutup Urai App, lalu coba lagi.",
         # ---------- teks yang ditulis ke Markdown ----------
         "md.read_with": "> Dibaca dengan {label}",
         "md.scan_note": "> Dibaca dengan {label} · {k} dari {n} halaman hasil scan",
@@ -264,6 +304,12 @@ STRINGS: dict[str, dict[str, str | tuple[str, str]]] = {
         "mm.no_text_tip": "Aktifkan baca scan, lalu ulangi",
         "mm.no_structure": "Tidak ada struktur yang bisa diambil",
         "mm.no_points": "Tidak ada poin yang bisa dirangkum",
+        "sum.ai_needs_key": "Ringkasan ditulis oleh AI dan butuh API key. Isi di Pengaturan.",
+        "sum.need_summary": "Buat ringkasan dulu di tab Ringkasan.",
+        "sum.writing": "Menulis ringkasan…",
+        "sum.no_text": "Tidak ada teks terbaca untuk diringkas. Aktifkan baca scan, lalu ulangi.",
+        "sum.title": "Ringkasan",
+        "sum.file_suffix": "ringkasan",
         "export.ai_label": "Rangkuman AI, bisa keliru. Periksa kembali dengan dokumen asli.",
         "export.fit": "Pas di layar",
         "export.made_with": "Dibuat dengan {app}",
@@ -358,4 +404,15 @@ def t(key: str, **kw) -> str:
         val = val[0] if kw.get("n") == 1 else val[1]
     if not kw:
         return val
-    return val.format(**{k: fmt_num(v) if isinstance(v, int) and not isinstance(v, bool) else v for k, v in kw.items()})
+    return val.format(**{k: _fmt_arg(v) for k, v in kw.items()})
+
+
+def _fmt_arg(v):
+    """Bilangan bulat diberi pemisah ribuan, pecahan satu angka desimal, sesuai bahasa aktif."""
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, int):
+        return fmt_num(v)
+    if isinstance(v, float):
+        return fmt_num(v, 1)
+    return v

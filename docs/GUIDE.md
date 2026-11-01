@@ -46,6 +46,21 @@ Press **Configure** under the modes, or **Settings › Offline reading**, to cho
 - **Accuracy**: *Fast* for clean scans, *Thorough* for blurry scans or phone photos (about twice as slow).
 - **Also read images inside Word, PowerPoint, and Excel files**: for example charts or tables pasted as pictures. Their text is added at the end of that document's result.
 
+### Accurate PDF engine (optional)
+
+The standard engine is fast, but tables with long text in their cells, headings, and multi-column layouts in PDFs can come out messy. The **Accurate (Docling)** engine reads the page layout first, so tables, headings, and paragraphs come out much cleaner.
+
+1. Open **Settings › Offline reading** and choose **Accurate (Docling)** under **PDF engine**. Changes here apply right away.
+2. The first time, the app offers a one-time download of about 1 GB. Press **Download**. You can close the window while it downloads; Accurate turns on by itself when it finishes. If the download is interrupted, it continues where it left off next time.
+3. After that it works offline. PDFs in the list get an **Accurate** tag.
+
+Good to know:
+
+- It is about 3–5 times slower than the standard engine, and the first PDF after starting the app takes longer while the engine loads.
+- Only PDFs with text use it. Word, PowerPoint, and Excel files, and fully scanned PDFs, keep using the standard reader and OCR. In PDFs that are only partly scanned, the scanned pages are read with offline OCR inside the accurate engine.
+- If the accurate engine fails on a document, the app reads it with the standard engine instead and shows a note on that row.
+- To free the space again, press **Remove** under the engine status.
+
 ### Using AI mode
 
 1. Open **Settings › AI**.
@@ -87,7 +102,24 @@ Press **Edit** in the preview bar. The yellow bar shows whether there are unsave
 - With **Combine into one**, you edit the whole combined file.
 - After saving, mind maps of that document are rebuilt from the edited text.
 
-## 4. Mind map
+## 4. Summary
+
+Open the **Summary** tab in the results panel (or press the **Summary** button). Summaries are written by AI, so they need an API key (see *Using AI mode*). The whole text of the selected document, or of the whole combined file, is sent to your AI provider.
+
+1. Choose a **Summary length**:
+   - **Short**: one paragraph.
+   - **Medium**: an opening paragraph, key points, and the conclusion.
+   - **Detailed**: section by section, in the document's order.
+2. Press **Create summary**. Very long documents are summarized in stages. The summary is written in the app's language.
+3. Then you can **Copy** it, **Save .md** it as a file, switch to another length, press **Create again**, or press **Make a mind map from this**.
+
+AI summaries can be wrong. Always check them against the original document.
+
+### Adjust the AI instructions
+
+Open **Settings › Prompts** to change what the AI focuses on, for each summary length (Short, Medium, Detailed) and each mind map type (Key points, Minutes, Full summary). Edited instructions are marked **Customized**, and **Reset to default** brings back the original text. Press **Save** to keep your changes. Urai App always adds the rules for the output format and language, so results still display correctly.
+
+## 5. Mind map
 
 Open the **Mind map** tab in the results panel (or press the **Mind map** button).
 
@@ -99,6 +131,7 @@ Open the **Mind map** tab in the results panel (or press the **Mind map** button
      - **Full summary**: every important part of the document, in its order, written concisely.
 
      The full document text is sent to the AI provider; its word count is shown before you press the button. Very long documents are summarized in stages. The summary is written in the app's language.
+   - **From summary**: free and offline. Builds the map from a summary you made in the **Summary** tab; choose which summary length to use. Nothing more is sent to the AI.
 2. Press **Create mind map** or **Create AI summary**.
 3. In the mind map: pan by dragging, zoom with the mouse wheel or the − and + buttons, and click the circle on a branch to collapse or expand it. **Fit** returns to screen size, **Collapse** shows only the main branches, **Full screen** is for presenting, and **Text** shows the summary as a list.
 
@@ -135,14 +168,14 @@ Press **Save** and choose:
 
 AI summaries can be wrong. Always check them against the original document before using them.
 
-## 5. Experimental features
+## 6. Experimental features
 
 Both depend on third-party services that may change at any time.
 
 - **YouTube links**: fetch the title, description, and transcript. Only works for videos that have subtitles or automatic transcripts; the Indonesian transcript is tried first, then English. If YouTube rejects requests from your network, try again later.
 - **Voice recordings**: converted to Indonesian text through Google's speech recognition service, so this needs internet and the recording is sent to Google. WAV files work directly. MP3, M4A, and MP4 files need [FFmpeg](https://www.gyan.dev/ffmpeg/builds/) installed and on the Windows PATH. Long recordings may be rejected by the service; split them into parts of a few minutes.
 
-## 6. Troubleshooting
+## 7. Troubleshooting
 
 | Problem | Cause and fix |
 | --- | --- |

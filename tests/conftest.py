@@ -16,6 +16,10 @@ def isolated_home(tmp_path, monkeypatch):
     monkeypatch.setenv("USERPROFILE", str(home))
     monkeypatch.setenv("APPDATA", str(tmp_path / "appdata"))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "appdata"))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "localappdata"))  # mesin yang diunduh (Docling)
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "localappdata"))
+    for var in ("URAI_DOCLING_PYTHON", "URAI_DOCLING_WORKER", "URAI_DOCLING_MODELS", "URAI_DOCLING_URL"):
+        monkeypatch.delenv(var, raising=False)
 
     class NoKeyring:
         @staticmethod
@@ -28,6 +32,9 @@ def isolated_home(tmp_path, monkeypatch):
     i18n.set_lang("en")  # setiap uji mulai dengan bahasa bawaan
     yield home
     i18n.set_lang("en")
+    from urai import docling_engine
+
+    docling_engine.stop_worker()  # pekerja mesin teliti tidak boleh terbawa ke uji berikutnya
 
 
 @pytest.fixture

@@ -1,0 +1,57 @@
+# Build the optional "accurate PDF" engine (Docling) as a separate download. It changes rarely, so it has its
+# own tag: pushing docling-engine-v1 builds UraiDocling-1-windows-x64.zip and attaches it to that release.
+# The app downloads it from there (see src/urai for the engine version it expects).
+name: Docling engine
+
+on:
+  push:
+    tags: ["docling-engine-v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  engine:
+    name: Build Docling engine (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: python -m pip install --upgrade uv
+
+      - name: Build and test the engine
+        run: >
+          python packaging/docling/build_engine.py --out build/docling
+          --zip dist/UraiDocling-1-windows-x64.zip
+          --smoke-pdf "src/urai/samples/Bab 1 Mengelola Waktu.pdf"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: UraiDocling-1-windows-x64
+          path: |
+            dist/UraiDocling-1-windows-x64.zip
+            dist/SHA256SUMS.txt
+          retention-days: 7
+          compression-level: 0
+
+      - name: Upload to Releases
+        if: startsWith(github.ref, 'refs/tags/docling-engine-v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $files = @("dist\UraiDocling-1-windows-x64.zip", "dist\SHA256SUMS.txt")
+          $notes = "Optional engine for the **Accurate (Docling)** PDF mode in Urai App. You don't need to download this by hand: the app offers it in **Settings > Offline reading > PDF engine** and verifies it with SHA256SUMS.txt."
+          gh release view $tag 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag @files --title "Urai App - Docling engine $($tag -replace '^docling-engine-v','')" --notes $notes --latest=false
+          } else {
+            gh release upload $tag @files --clobber
+          }

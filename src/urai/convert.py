@@ -13,6 +13,7 @@ from typing import Callable
 from PIL import Image
 
 from . import ai as ai_mod
+from . import docling_engine
 from .errors import Cancelled, OcrUnavailable, error_ref
 from .fileinfo import SCAN_CHARS, embedded_images, inspect_file, kind_label, meta_text, pdf_text_lengths
 from .i18n import t
@@ -46,12 +47,15 @@ class Item:
     fix: str = ""  # tindakan perbaikan yang ditawarkan, mis. "ocr"
     output: str = ""
     title: str = ""
+    engine: str = ""  # mesin yang benar-benar dipakai setelah diubah: standard | docling
+    note: str = ""    # keterangan tambahan, mis. mesin PDF teliti gagal lalu pembaca biasa yang dipakai
     result: str = field(default="", repr=False)
     # Bahan untuk menyusun ulang teks buatan aplikasi saat bahasa diganti (tidak dikirim ke tampilan).
     facts: dict = field(default_factory=dict, repr=False)  # halaman, slide, sheet, ukuran gambar
     msg_ref: tuple = field(default=(), repr=False)         # (kunci teks, argumen) untuk message
+    note_ref: tuple = field(default=(), repr=False)        # (kunci teks, argumen) untuk note
 
-    _PRIVATE = ("result", "facts", "msg_ref")
+    _PRIVATE = ("result", "facts", "msg_ref", "note_ref")
 
     def public(self) -> dict:
         d = asdict(self)
@@ -66,7 +70,7 @@ class Item:
 
     def reset(self) -> None:
         self.status, self.sub, self.words, self.message, self.fix, self.output, self.result = "idle", "", 0, "", "", "", ""
-        self.msg_ref = ()
+        self.engine, self.note, self.msg_ref, self.note_ref = "", "", (), ()
 
     def say(self, key: str, **kw) -> None:
         """Isi pesan baris ini. Kuncinya disimpan supaya pesan ikut berganti bahasa."""
@@ -76,6 +80,10 @@ class Item:
     def say_error(self, exc: BaseException) -> None:
         key, kw = error_ref(exc)
         self.say(key, **kw)
+
+    def add_note(self, key: str, **kw) -> None:
+        self.note_ref = (key, kw)
+        self.note = t(key, **kw)
 
     def localize(self) -> None:
         """Susun ulang nama link, keterangan, dan pesan dalam bahasa aktif."""
@@ -88,6 +96,9 @@ class Item:
         if self.msg_ref:
             key, kw = self.msg_ref
             self.message = t(key, **kw)
+        if self.note_ref:
+            key, kw = self.note_ref
+            self.note = t(key, **kw)
 
 
 def _new_id() -> str:
@@ -121,6 +132,7 @@ class Options:
     combined_name: str = ""  # kosong berarti nama bawaan sesuai bahasa ("Combined" atau "Gabungan")
     location: str = "custom"  # same | custom
     custom_dir: str = ""
+    pdf_engine: str = "standard"  # standard | docling
 
 
 _MD = None
@@ -266,6 +278,12 @@ class Converter:
 
     # ---------- per jenis file ----------
     def convert_item(self, item: Item) -> str:
+        item.engine, item.note, item.note_ref = "", "", ()
+        text = self._convert(item)
+        item.engine = item.engine or "standard"
+        return text
+
+    def _convert(self, item: Item) -> str:
         if item.is_link:
             return self._convert_link(item)
         path = item.source
@@ -274,6 +292,10 @@ class Converter:
             if mode == "off":
                 return _md_text(markitdown().convert(path))
             return self._convert_image(item)
+        if item.kind == "pdf" and self.opts.pdf_engine == "docling":
+            text = self._convert_docling(item)
+            if text is not None:
+                return text
         if item.kind == "pdf" and mode != "off":
             return self._convert_pdf(item)
         if item.kind == "aud":
@@ -284,6 +306,45 @@ class Converter:
         if mode != "off" and self.opts.embedded and item.kind in ("doc", "ppt", "xls"):
             text = self._append_embedded(item, text)
         return text
+
+    def _convert_docling(self, item: Item) -> str | None:
+        """Mesin PDF teliti (Docling) untuk PDF berteks atau campuran. None berarti pakai jalur biasa:
+        PDF yang seluruhnya hasil scan, PDF campuran dengan mode AI (AI yang membaca halaman scan),
+        mesin belum terpasang, atau mesin gagal (dokumen ini diberi keterangan)."""
+        if not docling_engine.installed_engine():
+            item.add_note("note.docling_missing")
+            return None
+        self._sub(item, t("sub.check_pages"))
+        lengths = pdf_text_lengths(item.source)
+        scanned = sum(1 for n in lengths if n < SCAN_CHARS)
+        if not lengths or scanned == len(lengths):
+            return None
+        mode = self.opts.ocr_mode
+        if scanned and mode == "ai":
+            return None
+        # OCR di Docling hanya untuk halaman scan di PDF campuran: PDF berteks tidak butuh OCR dan jadi jauh lebih lambat.
+        ocr = bool(scanned) and mode == "offline"
+        tess = engine()
+        langs: list[str] = []
+        if ocr:
+            if not tess.available:
+                return None  # jalur biasa yang memberi tahu bahwa baca scan offline tidak tersedia
+            try:
+                langs = self.langs()
+            except OcrUnavailable:
+                return None
+        try:
+            md = docling_engine.worker().convert(
+                item.source, ocr=ocr, tesseract=str(tess.cmd) if ocr else None,
+                tessdata=str(tess.tessdata) if ocr and tess.tessdata else None, langs=langs, cancel=self.cancel,
+                on_status=lambda key: self._sub(item, t(key)), timeout=docling_engine.doc_timeout(len(lengths)))
+        except docling_engine.DoclingError as e:
+            log.warning("Mesin PDF teliti gagal untuk %s, memakai pembaca biasa: %s", item.source, e)
+            item.add_note("note.docling_fallback")
+            self._sub(item, t("sub.docling_fallback"))
+            return None
+        item.engine = "docling"
+        return docling_engine.normalize_markdown(md)
 
     def _convert_link(self, item: Item) -> str:
         self._sub(item, t("sub.yt") if item.kind == "yt" else t("sub.web"))

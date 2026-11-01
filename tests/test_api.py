@@ -49,7 +49,7 @@ def test_set_language_relocalizes(api, samples):
     assert web["display"] == "Page on bps.go.id" and web["meta"] == "Web page link · bps.go.id"
     assert api.add_link("bukan link")["error"].startswith("Paste the full link")
     res = api.set_language("id")
-    assert res["ok"] and set(res) == {"ok", "settings", "items", "app", "providers", "tesseract"}
+    assert res["ok"] and set(res) == {"ok", "settings", "items", "app", "providers", "tesseract", "prompt_defaults"}
     assert res["settings"]["lang"] == "id" and Settings(api._settings.path).get("lang") == "id"
     img, pdf, web = res["items"]
     assert img["meta"].startswith("Gambar · 1400×800") and pdf["meta"].startswith("PDF · 2 halaman")

@@ -19,6 +19,7 @@ Urai App adalah aplikasi Windows gratis dan open source yang mengubah dokumen me
 | Pengaturan (bahasa, tema, bentuk hasil, penyedia dan model AI pilihan) | `%APPDATA%\UraiApp\settings.json` | File teks biasa di komputer Anda. |
 | API key penyedia AI | Windows Credential Manager | Hanya bila Credential Manager tidak tersedia, API key disimpan di `%APPDATA%\UraiApp\keys.json` yang hanya bisa dibaca akun Windows Anda. |
 | File catatan (log) | `%APPDATA%\UraiApp\logs\urai.log` (paling besar sekitar 4 MB, catatan lama terhapus otomatis) | Berisi nama file, lokasi folder, dan pesan error untuk membantu mengatasi masalah. Tidak berisi isi dokumen Anda. |
+| Mesin PDF akurat (hanya bila Anda mengunduhnya) | `%LOCALAPPDATA%\UraiApp\engines` | File program dan model AI yang berjalan di komputer Anda. Hapus lewat **Pengaturan › Baca offline**. |
 | Gambar sementara untuk OCR offline | Folder sementara Windows | Langsung dihapus setelah setiap halaman dibaca. |
 
 ## Saat data keluar dari komputer
@@ -28,10 +29,11 @@ Data hanya dikirim bila **Anda** memakai salah satu fitur berikut:
 | Fitur | Yang dikirim | Dikirim ke |
 | --- | --- | --- |
 | **Mode AI** (membaca scan dan gambar dengan AI) | Gambar halaman atau gambar yang sedang dibaca, dan API key Anda | Penyedia AI pilihan Anda (misalnya Anthropic, Google, DeepSeek, OpenAI, OpenRouter, atau alamat server yang Anda isi) |
-| **Rangkuman AI** untuk mind map | Teks dokumen yang dipilih, dan API key Anda | Penyedia AI pilihan Anda |
+| Tab **Ringkasan**, dan mind map **Rangkuman AI** | Teks dokumen yang dipilih, dan API key Anda | Penyedia AI pilihan Anda |
 | **Tes koneksi** di pengaturan AI | Satu gambar uji yang sangat kecil dan API key Anda | Penyedia AI pilihan Anda |
 | **Link YouTube dan halaman web** | Permintaan biasa untuk halaman atau transkrip video itu | Situsnya sendiri (misalnya YouTube) |
 | **Rekaman suara** (eksperimental) | Rekaman suaranya | Layanan pengenal suara Google |
+| **Mengunduh mesin PDF akurat** (hanya bila Anda memilihnya) | Permintaan unduhan biasa | GitHub (halaman Releases proyek ini) |
 | **Cek pembaruan** (hanya saat tombolnya ditekan) | Permintaan nomor versi terbaru | GitHub (`api.github.com`) |
 | Tautan ke halaman penyedia, kode sumber, atau unduhan | Dibuka di browser biasa Anda | Situs yang Anda buka |
 

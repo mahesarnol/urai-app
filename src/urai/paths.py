@@ -46,6 +46,18 @@ def config_dir() -> Path:
     return d
 
 
+def local_data_dir() -> Path:
+    """Data besar yang tidak perlu ikut profil roaming: %LOCALAPPDATA%\\UraiApp (Windows)."""
+    base = os.environ.get("LOCALAPPDATA") if IS_WINDOWS else os.environ.get("XDG_DATA_HOME")
+    root = Path(base) if base else Path.home() / ".local" / "share"
+    return root / APP_ID
+
+
+def engines_dir() -> Path:
+    """Mesin tambahan yang diunduh terpisah, mis. mesin PDF teliti (Docling)."""
+    return local_data_dir() / "engines"
+
+
 def log_dir() -> Path:
     d = config_dir() / "logs"
     d.mkdir(parents=True, exist_ok=True)

@@ -56,6 +56,21 @@ Unggah `UraiApp-3.0.0-Setup.exe` dan `SHA256SUMS.txt` dari halaman Releases ke f
 - **Ikon**: `packaging/urai.ico` masih ikon polos sementara (huruf U). Ganti dengan logo setelah nama aman didaftarkan.
 - **Peringatan SmartScreen**: installer yang belum ditandatangani akan memunculkan peringatan "Windows melindungi PC Anda" sampai cukup banyak orang mengunduhnya. Untuk menghilangkannya perlu sertifikat code signing (berbayar). Untuk proyek open source, [SignPath Foundation](https://signpath.org) menyediakan tanda tangan gratis.
 
+## 6. Mesin PDF akurat (Docling)
+
+Mesin Docling yang opsional dirakit terpisah dari aplikasi, karena ukurannya besar (sekitar 0,8 GB setelah dikompres) dan jarang berubah. Alur [docling-engine.yml](../.github/workflows/docling-engine.yml) merakitnya saat tag `docling-engine-v*` didorong, mengujinya pada satu PDF contoh, lalu menempelkan `UraiDocling-1-windows-x64.zip` dan `SHA256SUMS.txt` ke rilis itu. Aplikasi mengunduhnya dari rilis `docling-engine-v1` dan memeriksa SHA-256-nya sebelum memasang.
+
+Pertama kali:
+
+```bash
+git tag docling-engine-v1
+git push origin docling-engine-v1
+```
+
+Rakit ulang hanya bila pekerja (`packaging/docling/worker.py`) atau versi Docling (`DOCLING_VERSION` di `packaging/docling/build_engine.py`) berubah. Untuk perubahan yang tidak bisa dipakai aplikasi versi lama, naikkan `ENGINE_VERSION` di `worker.py` dan `ENGINE` di `src/urai/docling_engine.py`, perbarui nama file di alur itu, lalu dorong tag baru (misalnya `docling-engine-v2`).
+
+Merakit di komputer sendiri: `python packaging/docling/build_engine.py --out build/docling --zip dist/UraiDocling-1-windows-x64.zip` (butuh [uv](https://docs.astral.sh/uv/) dan ruang kosong sekitar 2,5 GB). Simpan hasilnya di luar OneDrive atau folder lain yang disinkronkan.
+
 ## Merakit di komputer sendiri (opsional)
 
 Di Windows 10/11 dengan Python 3.12, Inno Setup 6, dan Tesseract (dari Chocolatey atau installer UB Mannheim):

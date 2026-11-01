@@ -258,6 +258,8 @@ def main(argv: list[str] | None = None) -> int:
 
             webbrowser.open(info.LINKS["webview2"])
         return 2
+    finally:
+        api._close()  # jendela ditutup: hentikan unduhan dan pekerja mesin PDF teliti
     if args.smoke:
         return 0 if smoke.get("ready") else 3
     return 0
